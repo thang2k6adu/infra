@@ -494,8 +494,12 @@ sửa cái phần ở
 - core component set
 - tenants app set
 
-sau khi xong boostrap ArgoCD vào cluster
+sau đó cài ArgoCD trước đã (cài tạm thôi)
 
+kubectl create namespace argocd
+kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+sau đó bootstrap ArgoCD vào cluster
 kubectl apply -k https://github.com/thang2k6adu/kubernetes-infra/cluster-dev/bootstrap/overlays/default
 
 Ý nghĩa:
@@ -504,3 +508,65 @@ kubectl apply -k https://github.com/thang2k6adu/kubernetes-infra/cluster-dev/boo
 - tạo ApplicationSet
 - Argo CD bắt đầu tự quản lý chính nó
 - deploy core + tenants
+
+check
+
+This should give you 4 applications
+
+```shell
+$ kubectl get applications -n argocd
+NAME                          SYNC STATUS   HEALTH STATUS
+bgd-blue                      Synced        Healthy
+sample-admin-workload         Synced        Healthy
+myapp                         Synced        Healthy
+gitops-controller             Synced        Healthy
+```
+
+Backed by 2 applicationsets
+
+```shell
+$ kubectl get appsets -n argocd
+NAME      AGE
+cluster   110s
+tenants   110s
+```
+
+để xem argoCD UI, đầu tiên cần password
+
+```shell
+kubectl get secret/argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d ; echo
+```
+
+sau đấy port forward (dùng `admin` là user names)
+
+```shell
+kubectl -n argocd port-forward --address 0.0.0.0 service/argocd-server 8080:443
+```
+
+cài k8s dashboard
+
+1 application trong gitops sẽ như này (kể cả core hay tenants)
+
+├── kustomization.yaml
+├── namespace.yaml
+├── deployment.yaml
+├── service.yaml
+├── ingress.yaml
+└── configmap.yaml
+
+quy tắc đặt tên
+
+<app-name>-<component>
+
+VD
+metadata:
+  name: myapp-deployment
+---
+metadata:
+  name: myapp-service
+---
+metadata:
+  name: myapp-config
+---
+metadata:
+  name: myapp

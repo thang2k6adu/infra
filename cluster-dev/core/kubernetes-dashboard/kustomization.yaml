@@ -1,0 +1,10 @@
+resources:
+  - kubernetes-dashboard-namespace.yaml
+  - kubernetes-dashboard-serviceaccount.yaml
+  - kubernetes-dashboard-service.yaml
+  - kubernetes-dashboard-metrics-service.yaml
+  - kubernetes-dashboard-secrets.yaml
+  - kubernetes-dashboard-configmap.yaml
+  - kubernetes-dashboard-rbac.yaml
+  - kubernetes-dashboard-deployment.yaml
+  - kubernetes-dashboard-metrics-deployment.yaml

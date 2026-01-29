@@ -235,3 +235,4 @@ core/prometheus/
 Bạn chỉ cần nói:
 **“Cho tôi ví dụ repo có core ingress + cert-manager + prometheus”**
 tôi sẽ viết cấu trúc + YAML mẫu cho bạn.
+
