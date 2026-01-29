@@ -575,3 +575,72 @@ copy nguyên cái argo CD trên trang chính về tách ra là xong
 
 giờ check
 
+Check service:
+```bash
+kubectl get svc -n kubernetes-dashboard
+```
+
+lấy token login
+kubectl -n kubernetes-dashboard create token kubernetes-dashboard-admin
+
+## 4️⃣ Mở proxy để truy cập Dashboard
+```bash
+sudo ufw allow 8001
+kubectl proxy --address=0.0.0.0 --accept-hosts='^.*$'
+```
+
+Nếu không mở proxy tại port `8001` thì phải vào `6443` (chắc chắn không vào được).
+
+
+Truy cập Dashboard:
+```
+http://192.168.0.50:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+```
+
+Sau khi dùng xong thì đóng lại:
+```bash
+sudo ufw delete allow 8001
+sudo ufw reload
+```
+
+setup ingress
+
+disable traefik (này làm thủ công, ko gitops được vì là server config)
+
+
+Ghét traefik nên disable đi:
+```bash
+sudo nano /etc/rancher/k3s/config.yaml
+```
+
+Nội dung:
+```yaml
+disable:
+  - traefik
+```
+```bash
+sudo systemctl restart k3s
+```
+
+Check:
+```bash
+kubectl get pods -n kube-system
+```
+
+Config kube:
+```bash
+mkdir -p ~/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+sudo chown $USER:$USER ~/.kube/config
+```
+
+fix lỗi 127.0.0.1
+echo 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml' >> ~/.bashrc
+source ~/.bashrc
+
+setup monitoring (cái dưới đây chạy thay cho helm, từ lần sau, cái nào mà chạy helm thì cứ application mà giã)
+
+tiếp tạo thêm cái values cho ingress nginx
+
+
+
