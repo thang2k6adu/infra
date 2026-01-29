@@ -570,3 +570,8 @@ metadata:
 ---
 metadata:
   name: myapp
+
+copy nguyên cái argo CD trên trang chính về tách ra là xong
+
+giờ check
+
