@@ -666,4 +666,4 @@ kubectl -n argocd port-forward --address 0.0.0.0 service/argocd-server 8080:443
 tiếp tạo thêm cái values cho ingress nginx
 
 
-
+tạo name space
