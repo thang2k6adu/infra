@@ -640,6 +640,7 @@ source ~/.bashrc
 
 setup monitoring (cái dưới đây chạy thay cho helm, từ lần sau, cái nào mà chạy helm thì cứ application mà giã)
 
+
 thêm cái configmap cho argoCD để dùng helm chart trong kustomization
 
 Check:
@@ -655,6 +656,7 @@ alertmanager-...
 node-exporter-...
 ```
 
+kubectl -n argocd port-forward --address 0.0.0.0 service/argocd-server 8080:443
 
 tiếp tạo thêm cái values cho ingress nginx
 

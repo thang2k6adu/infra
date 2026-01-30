@@ -1,15 +1,21 @@
 grafana:
-  adminPassword: "admin"
-  service:
-    type: ClusterIP
+  enabled: false
+
+alertmanager:
+  enabled: false
 
 prometheus:
   prometheusSpec:
-    retention: 10d
+    retention: 6h
+    resources:
+      requests:
+        memory: 256Mi
+      limits:
+        memory: 512Mi
     storageSpec:
       volumeClaimTemplate:
         spec:
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 10Gi
+              storage: 2Gi
