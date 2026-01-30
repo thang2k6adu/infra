@@ -4,14 +4,31 @@ grafana:
 alertmanager:
   enabled: false
 
+defaultRules:
+  create: false
+
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+prometheusOperator:
+  enabled: true
+
 prometheus:
+  enabled: true
   prometheusSpec:
     retention: 6h
+
     resources:
       requests:
+        cpu: 100m
         memory: 256Mi
       limits:
+        cpu: 300m
         memory: 512Mi
+
     storageSpec:
       volumeClaimTemplate:
         spec:
