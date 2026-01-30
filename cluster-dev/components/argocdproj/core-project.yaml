@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
 spec:
   description: Core infrastructure project
+
   sourceRepos:
     - https://github.com/thang2k6adu/kubernetes-infra
 
@@ -28,6 +29,13 @@ spec:
     - group: networking.k8s.io
       kind: IngressClass
 
+    - group: argoproj.io
+      kind: AppProject
+    - group: argoproj.io
+      kind: Application
+    - group: argoproj.io
+      kind: ApplicationSet
+
   namespaceResourceWhitelist:
     - group: ""
       kind: Service
@@ -40,7 +48,7 @@ spec:
 
     - group: apps
       kind: Deployment
-    - group: apps
+    - group: StatefulSet
       kind: StatefulSet
     - group: apps
       kind: DaemonSet
@@ -55,11 +63,13 @@ spec:
     - group: rbac.authorization.k8s.io
       kind: RoleBinding
 
-    - group: monitoring.coreos.com
-      kind: "*"
-
     - group: policy
       kind: PodDisruptionBudget
-
     - group: autoscaling
       kind: HorizontalPodAutoscaler
+
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+
+    - group: monitoring.coreos.com
+      kind: "*"
