@@ -1,28 +1,28 @@
-# 🚀 HƯỚNG DẪN TRIỂN KHAI K3S CLUSTER (MASTER + WORKER)
+# HƯỚNG DẪN TRIỂN KHAI K3S CLUSTER (MASTER + WORKER)
 
-## BƯỚC 2: SET IP TĨNH + DISABLE CLOUD-INIT (MASTER)
+## BƯỚC 1: SET IP TĨNH + DISABLE CLOUD-INIT (MASTER)
 
-Disable cloud-init network:
+### Disable cloud-init network:
 ```bash
 sudo nano /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 ```
 
-Nội dung:
+**Nội dung:**
 ```yaml
 network: {config: disabled}
 ```
 
-Xóa netplan cũ:
+### Xóa netplan cũ:
 ```bash
 sudo rm -f /etc/netplan/50-cloud-init.yaml
 ```
 
-Tạo netplan mới:
+### Tạo netplan mới:
 ```bash
 sudo nano /etc/netplan/01-static.yaml
 ```
 
-Nội dung:
+**Nội dung:**
 ```yaml
 network:
   version: 2
@@ -39,45 +39,51 @@ network:
           - 1.1.1.1
 ```
 
-Apply:
+### Apply:
 ```bash
 sudo netplan apply
 ```
 
-## BƯỚC 1: ĐỔI HOSTNAME (TRÊN NODE MASTER)
+---
 
-Nhớ dùng `ip a` để check **IP / mask / gateway** và thay cho đúng trước khi làm bất cứ điều gì.
+## BƯỚC 2: ĐỔI HOSTNAME (TRÊN NODE MASTER)
+
+⚠️ **Lưu ý:** Nhớ dùng `ip a` để check **IP / mask / gateway** và thay cho đúng trước khi làm bất cứ điều gì.
+
 ```bash
 sudo hostnamectl set-hostname k3s-master
 sudo nano /etc/hosts
 ```
 
-Ví dụ nội dung:
+**Ví dụ nội dung:**
 ```txt
 127.0.0.1 localhost
 192.168.0.50 k3s-master
 ```
 
-Reboot:
+### Reboot:
 ```bash
 sudo reboot
 ```
 
-Check IP:
+### Check IP:
 ```bash
 ip a
 ```
 
+---
+
 ## BƯỚC 3: SCAN IP CÁC SERVER WORKER (TRÊN MASTER)
 
-Cài `nmap`:
+### Cài `nmap`:
 ```bash
 sudo apt install nmap -y
 ```
 
-Auto generate inventory file
+### Auto generate inventory file
 
-⚠️ Nhớ sửa subnet + port SSH cho đúng môi trường. Sau này thêm server thì nhớ chạy lại cái này là oke.
+⚠️ **Lưu ý:** Nhớ sửa subnet + port SSH cho đúng môi trường. Sau này thêm server thì nhớ chạy lại cái này là oke.
+
 ```bash
 SUBNET=192.168.0.0/24
 PORT=8022
@@ -101,12 +107,12 @@ sudo nmap -p $PORT --open $SUBNET \
 cd ~/
 ```
 
-Check file inventory:
+### Check file inventory:
 ```bash
 cat ~/k3s-inventory/hosts.ini
 ```
 
-Kết quả mong đợi:
+**Kết quả mong đợi:**
 ```ini
 [master]
 192.168.0.50 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.0.50
@@ -115,6 +121,8 @@ Kết quả mong đợi:
 192.168.0.108 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.0.51
 192.168.0.109 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.0.52
 ```
+
+---
 
 ## BƯỚC 4: CÀI K3S CONTROL PLANE (MASTER)
 
@@ -125,10 +133,12 @@ curl -sfL https://get.k3s.io | sh -s - \
   --node-name k3s-master
 ```
 
-Check:
+### Check:
 ```bash
 kubectl get nodes
 ```
+
+---
 
 ## BƯỚC 5: MỞ FIREWALL (UFW)
 
@@ -139,44 +149,51 @@ sudo ufw allow 8472/udp   # pod giao tiếp
 sudo ufw allow 10250/tcp  # lấy log pod
 ```
 
-### Worker (bằng Ansible):
-```bash
-sudo ufw allow 8472/udp
-sudo ufw allow 10250/tcp
-```
+---
 
-## CÀI ANSIBLE TRÊN MASTER
+## BƯỚC 6: CÀI ANSIBLE TRÊN MASTER
+
 ```bash
 sudo apt update
 sudo apt install ansible -y
 ```
 
-Lưu ý phải lắp ssh vào master node trước khi ssh
+### Lấy SSH Key
 
-Lấy ssh private key đã bỏ vào các node (lúc setup) rồi bỏ lên master
-ở đây chỉ có hướng dẫn window
-scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519 thang2k6adu@192.168.0.50
-:/home/thang2k6adu/.ssh/id_ed25519
+⚠️ **Lưu ý:** Phải lắp ssh vào master node trước khi ssh
 
-lấy public key bỏ vào
+Lấy ssh private key đã bỏ vào các node (lúc setup) rồi bỏ lên master. Ở đây chỉ có hướng dẫn Windows:
+
+```powershell
+scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519 thang2k6adu@192.168.0.50:/home/thang2k6adu/.ssh/id_ed25519
+```
+
+Lấy public key bỏ vào:
+```powershell
 scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519.pub thang2k6adu@192.168.0.50:/home/thang2k6adu/.ssh/id_ed25519.pub
+```
 
-phân quyền
+### Phân quyền:
+```bash
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/id_ed25519
 ```
 
-Test kết nối:
+### Test kết nối:
 ```bash
 ansible workers -i ~/k3s-inventory/hosts.ini -m ping
 ```
 
-## SET SUDO KHÔNG PASSWORD (CHO WORKER)
+---
 
-Tạo file:
+## BƯỚC 7: SET SUDO KHÔNG PASSWORD (CHO WORKER)
+
+### Tạo file:
 ```bash
 nano ~/k3s-inventory/setup-sudo.yml
 ```
+
+**Nội dung:**
 ```yaml
 - hosts: workers
   become: yes
@@ -191,15 +208,22 @@ nano ~/k3s-inventory/setup-sudo.yml
         mode: '0440'
 ```
 
-Run:
+### Run:
 ```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/setup-sudo.yml -K
 ```
 
-tạo playbook gen card mạng
+---
 
+## BƯỚC 8: TẠO PLAYBOOK GEN CARD MẠNG
+
+### Tạo playbook:
+```bash
 nano ~/k3s-inventory/gen_iface.yml
+```
 
+**Nội dung:**
+```yaml
 - hosts: master,workers
   gather_facts: yes
   vars:
@@ -212,17 +236,28 @@ nano ~/k3s-inventory/gen_iface.yml
         path: "{{ inventory_file }}"
         regexp: "^{{ inventory_hostname }}\\s"
         line: "{{ inventory_hostname }} ansible_user={{ ansible_user }} ansible_port={{ ansible_port }} worker_ip={{ hostvars[inventory_hostname].worker_ip }} iface={{ ansible_default_ipv4.interface }}"
+```
 
-check
+### Check:
+```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/gen_iface.yml -K
+```
 
-check
+### Verify:
+```bash
 cat ~/k3s-inventory/hosts.ini
+```
 
-## SET IP TĨNH CHO WORKER
+---
+
+## BƯỚC 9: SET IP TĨNH CHO WORKER
+
+### Tạo playbook:
 ```bash
 nano ~/k3s-inventory/set-static-ip.yml
 ```
+
+**Nội dung:**
 ```yaml
 - hosts: workers
   become: yes
@@ -255,10 +290,12 @@ nano ~/k3s-inventory/set-static-ip.yml
       poll: 0
 ```
 
+### Tạo template:
 ```bash
 nano ~/k3s-inventory/static.yaml.j2
 ```
 
+**Nội dung:**
 ```yaml
 network:
   version: 2
@@ -278,12 +315,15 @@ network:
 {% endfor %}
 ```
 
-Run:
+### Run:
 ```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/set-static-ip.yml
 ```
 
-gen lại host
+---
+
+## BƯỚC 10: GEN LẠI HOST
+
 ```bash
 SUBNET=192.168.0.0/24
 PORT=8022
@@ -309,21 +349,27 @@ cd ~/
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/gen_iface.yml -K
 ```
 
-Check file inventory:
+### Check file inventory:
 ```bash
 cat ~/k3s-inventory/hosts.ini
 ```
 
-Check:
+### Verify:
 ```bash
 ansible workers -i ~/k3s-inventory/hosts.ini -m shell -a \
 "echo '=== HOST:' \$(hostname) && ip a | grep inet && ip route | grep default && ping -c 2 8.8.8.8"
 ```
 
-## MỞ FIREWALL CHO WORKER (ANSIBLE)
+---
+
+## BƯỚC 11: MỞ FIREWALL CHO WORKER (ANSIBLE)
+
+### Tạo playbook:
 ```bash
 nano ~/k3s-inventory/open-ufw-worker.yml
 ```
+
+**Nội dung:**
 ```yaml
 - hosts: workers
   become: yes
@@ -345,15 +391,24 @@ nano ~/k3s-inventory/open-ufw-worker.yml
         state: enabled
 ```
 
-Run:
+### Run:
 ```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/open-ufw-worker.yml
 ```
 
-đổi tên node trước khi join để tránh trùng tên
+---
 
+## BƯỚC 12: ĐỔI TÊN NODE TRƯỚC KHI JOIN
+
+⚠️ **Lưu ý:** Đổi tên node trước khi join để tránh trùng tên
+
+### Tạo playbook:
+```bash
 nano ~/k3s-inventory/set-hostname.yml
+```
 
+**Nội dung:**
+```yaml
 - hosts: workers
   become: yes
   gather_facts: yes
@@ -373,31 +428,42 @@ nano ~/k3s-inventory/set-hostname.yml
     - name: Reboot to apply hostname
       reboot:
         reboot_timeout: 300
+```
 
-chạy
+### Chạy:
+```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/set-hostname.yml -K
+```
 
+---
 
-## LẤY TOKEN TỪ MASTER
+## BƯỚC 13: LẤY TOKEN TỪ MASTER
+
 ```bash
 sudo cat /var/lib/rancher/k3s/server/node-token
 ```
 
-Ví dụ:
+**Ví dụ:**
 ```
 K10a3f9c8c7b2a3b7f9::server:xxxxxxxx
 ```
 
-## CÀI K3S AGENT (WORKER)
+---
+
+## BƯỚC 14: CÀI K3S AGENT (WORKER)
+
+### Tạo playbook:
 ```bash
 nano ~/k3s-inventory/install-k3s-worker.yml
 ```
+
+**Nội dung:**
 ```yaml
 - hosts: workers
   become: yes
   vars:
     k3s_url: "https://192.168.0.50:6443"
-    k3s_token: "K10e6dd53c7c99770339ed79f4771c7ded0fbeee5baadfa6ed8224b56a80d5f43ce::server:78b31cbc69888b6ad8603eeb988b07a9"
+    k3s_token: "K10d352882604ec2cf5bab8a4f300209999536bd2ba3609d795d1af4252848ed1e7::server:53772b9d1aadb3a9be59bdf2c4d31c94"
 
   tasks:
     - name: Install k3s agent
@@ -405,15 +471,21 @@ nano ~/k3s-inventory/install-k3s-worker.yml
         curl -sfL https://get.k3s.io | K3S_URL={{ k3s_url }} K3S_TOKEN={{ k3s_token }} sh -
 ```
 
-Run:
+### Run:
 ```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/install-k3s-worker.yml
 ```
 
-Uninstall nếu lỗi:
+---
+
+## BƯỚC 15: UNINSTALL NÊU LỖI
+
+### Tạo playbook uninstall:
 ```bash
 nano ~/k3s-inventory/uninstall-k3s-worker.yml
 ```
+
+**Nội dung:**
 ```yaml
 - hosts: workers
   become: yes
@@ -445,16 +517,21 @@ nano ~/k3s-inventory/uninstall-k3s-worker.yml
         - /var/lib/kubelet
       ignore_errors: yes
 ```
+
+### Chạy:
 ```bash
 ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/uninstall-k3s-worker.yml
 ```
 
-## CHECK NODE ĐÃ JOIN
+---
+
+## BƯỚC 16: CHECK NODE ĐÃ JOIN
+
 ```bash
 kubectl get nodes -o wide
 ```
 
-Output:
+**Output:**
 ```
 NAME         STATUS   ROLES           IP
 k3s-master   Ready    control-plane   192.168.0.50
@@ -462,208 +539,32 @@ worker1      Ready    <none>          192.168.0.505
 worker2      Ready    <none>          192.168.0.506
 ```
 
-## SET ROLE CHO WORKER
+---
+
+## BƯỚC 17: SET ROLE CHO WORKER
+
 ```bash
 kubectl get nodes --no-headers | awk '{print $1}' | grep -v master | xargs -I {} kubectl label node {} node-role.kubernetes.io/worker=worker
 ```
 
-Check:
+### Check:
 ```bash
 kubectl get nodes
 ```
 
-Output:
+**Output:**
 ```
 NAME            STATUS   ROLES    AGE
 192.168.0.505   Ready    worker   1d
 192.168.0.506   Ready    worker   1d
 ```
 
-# 🚀 CÀI HELM + KUBERNETES DASHBOARD
+---
 
-## 1️⃣ Cài Helm
+## BƯỚC 18: CÀI HELM
+
 ```bash
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 helm version
 ```
-
-bắt đầu setup gitops
-từ repo gốc tạo repo cluster-XXX (VD: Cluster Dev)
-
-sửa cái phần ở
-- core component set
-- tenants app set
-
-sau đó cài ArgoCD trước đã (cài tạm thôi)
-
-kubectl create namespace argocd
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-sau đó bootstrap ArgoCD vào cluster
-kubectl apply -k https://github.com/thang2k6adu/kubernetes-infra/cluster-dev/bootstrap/overlays/default
-
-sau đó có thể chuyển nội dung của install.yaml vào bootstrap.yaml
-
-curl -L -o cluster-dev/bootstrap/base/install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/ha/install.yaml
-
-
-Ý nghĩa:
-- tạo namespace argocd
-- cài Argo CD
-- tạo ApplicationSet
-- Argo CD bắt đầu tự quản lý chính nó
-- deploy core + tenants
-
-check
-
-This should give you 4 applications
-
-```shell
-$ kubectl get applications -n argocd
-NAME                          SYNC STATUS   HEALTH STATUS
-bgd-blue                      Synced        Healthy
-sample-admin-workload         Synced        Healthy
-myapp                         Synced        Healthy
-gitops-controller             Synced        Healthy
-```
-
-Backed by 2 applicationsets
-
-```shell
-$ kubectl get appsets -n argocd
-NAME      AGE
-cluster   110s
-tenants   110s
-```
-
-để xem argoCD UI, đầu tiên cần password
-
-```shell
-kubectl get secret/argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d ; echo
-```
-
-sau đấy port forward (dùng `admin` là user names)
-
-```shell
-kubectl -n argocd port-forward --address 0.0.0.0 service/argocd-server 8080:443
-```
-
-cài k8s dashboard
-
-1 application trong gitops sẽ như này (kể cả core hay tenants)
-
-├── kustomization.yaml
-├── namespace.yaml
-├── deployment.yaml
-├── service.yaml
-├── ingress.yaml
-└── configmap.yaml
-
-quy tắc đặt tên
-
-<app-name>-<component>
-
-VD
-metadata:
-  name: myapp-deployment
----
-metadata:
-  name: myapp-service
----
-metadata:
-  name: myapp-config
----
-metadata:
-  name: myapp
-
-copy nguyên cái argo CD trên trang chính về tách ra là xong
-
-giờ check
-
-Check service:
-```bash
-kubectl get svc -n kubernetes-dashboard
-```
-
-lấy token login
-kubectl -n kubernetes-dashboard create token kubernetes-dashboard-admin
-
-## 4️⃣ Mở proxy để truy cập Dashboard
-```bash
-sudo ufw allow 8001
-kubectl proxy --address=0.0.0.0 --accept-hosts='^.*$'
-```
-
-Nếu không mở proxy tại port `8001` thì phải vào `6443` (chắc chắn không vào được).
-
-
-Truy cập Dashboard:
-```
-http://192.168.0.50:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
-```
-
-Sau khi dùng xong thì đóng lại:
-```bash
-sudo ufw delete allow 8001
-sudo ufw reload
-```
-
-setup ingress
-
-disable traefik (này làm thủ công, ko gitops được vì là server config)
-
-
-Ghét traefik nên disable đi:
-```bash
-sudo nano /etc/rancher/k3s/config.yaml
-```
-
-Nội dung:
-```yaml
-disable:
-  - traefik
-```
-```bash
-sudo systemctl restart k3s
-```
-
-Check:
-```bash
-kubectl get pods -n kube-system
-```
-
-Config kube:
-```bash
-mkdir -p ~/.kube
-sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
-sudo chown $USER:$USER ~/.kube/config
-```
-
-fix lỗi 127.0.0.1
-echo 'export KUBECONFIG=/etc/rancher/k3s/k3s.yaml' >> ~/.bashrc
-source ~/.bashrc
-
-setup monitoring (cái dưới đây chạy thay cho helm, từ lần sau, cái nào mà chạy helm thì cứ application mà giã)
-
-
-thêm cái configmap cho argoCD để dùng helm chart trong kustomization
-
-Check:
-```bash
-kubectl get pods -n monitoring
-```
-
-Output:
-```
-prometheus-...
-grafana-...
-alertmanager-...
-node-exporter-...
-```
-
-kubectl -n argocd port-forward --address 0.0.0.0 service/argocd-server 8080:443
-
-tiếp tạo thêm cái values cho ingress nginx
-
-
-tạo name space
+bắt đầu qua README.md
