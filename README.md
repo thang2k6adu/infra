@@ -78,16 +78,21 @@ kubectl apply -k https://github.com/thang2k6adu/kubernetes-infra/cluster-dev/boo
 This should give you 4 applications
 
 ```shell
-$ kubectl get applications -n argocd
-NAME                          SYNC STATUS   HEALTH STATUS
-myapp                         Synced        Healthy
-gitops-controller             Synced        Healthy
+kubectl get applications -n argocd
+
+NAME                   SYNC STATUS   HEALTH STATUS
+gitops-controller      OutOfSync     Progressing
+kubernetes-dashboard   Synced        Progressing
+monitoring             OutOfSync     Missing
+myapp                  Synced        Progressing
+nginx-ingress          OutOfSync     Missing
 ```
 
 Backed by 2 applicationsets
 
 ```shell
-$ kubectl get appsets -n argocd
+kubectl get appsets -n argocd
+
 NAME      AGE
 cluster   110s
 tenants   110s
@@ -104,67 +109,9 @@ Then port-forward to see it in your browser (using `admin` as the username).
 ```shell
 kubectl -n argocd port-forward --address 0.0.0.0 service/argocd-server 8080:443
 ```
+check:
+sudo ufw allow 8080
+https://192.168.0.50:8080
 
-# Enjoy
-
-Fork and Enjoy!
-
-> :warning: Feel free to fork this and play around with it, but remember if you'll have to change the applicationsets configuration and where the bases are pointing to if you're chanigng names of things
-
-Check Kubernetes Dashboard
-
-Kiểm tra pod & service
-kubectl -n kubernetes-dashboard get pods
-kubectl -n kubernetes-dashboard get svc
-
-Kiểm tra RBAC
-kubectl get clusterrole dashboard-admin
-kubectl get clusterrolebinding kubernetes-dashboard-admin
-kubectl -n kubernetes-dashboard get sa kubernetes-dashboard-admin
-
-Lấy token đăng nhập
-kubectl -n kubernetes-dashboard create token kubernetes-dashboard-admin
-
-Port-forward Dashboard (nhớ mở firewall)
-kubectl -n kubernetes-dashboard port-forward --address 0.0.0.0 service/kubernetes-dashboard 8443:443
-
-Check kube-prometheus-stack
-Kiểm tra pod
-kubectl -n monitoring get pods
-
-Kiểm tra CRDs
-kubectl get crd | grep prometheus
-kubectl get crd | grep servicemonitor
-
-Kiểm tra Prometheus
-kubectl -n monitoring get prometheus
-kubectl -n monitoring get svc
-
-Kiểm tra PVC
-kubectl -n monitoring get pvc
-
-Port-forward Prometheus UI (nhớ mở firewall)
-kubectl -n monitoring port-forward --address 0.0.0.0 svc/monitoring-kube-prometheus-prometheus 9090:9090
-
-
-Mở:
-
-http://localhost:9090
-
-3. Check Ingress NGINX
-Kiểm tra namespace & pod
-kubectl -n ingress-nginx get pods
-kubectl -n ingress-nginx get svc
-
-Kiểm tra IngressClass
-kubectl get ingressclass
-
-Kiểm tra HPA
-kubectl -n ingress-nginx get hpa
-
-Kiểm tra ServiceMonitor (metrics)
-kubectl -n ingress-nginx get servicemonitor
-
-Test metrics endpoint
-kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller-metrics 10254:10254
-curl http://localhost:10254/metrics
+disable after done
+sudo ufw delete allow 8080
