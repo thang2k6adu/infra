@@ -1,0 +1,263 @@
+image:
+  repository: ghcr.io/thang2k6adu/pp191225-be/be
+  pullPolicy: Always # Always cho :latest tag (dev), IfNotPresent cho versioned tags
+  tag: "develop" # Mặc định dùng Chart.appVersion, override khi deploy
+
+imagePullSecrets: []
+# - name: registry-secret  # Uncomment nếu dùng private registry
+
+nameOverride: ""
+fullnameOverride: "pp191225-api-service"
+
+replicaCount: 2
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0 # Đảm bảo zero-downtime deployment
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Nếu app có endpoint metrics + prometheus, prometheus sẽ tự quét pod có annotation này (cách cũ)
+podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "8080"
+  # prometheus.io/path: "/metrics"
+
+podLabels: {}
+  # version: "v1"
+  # team: "backend"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault #giới hạn các lệnh kernel (của node) mà container có thể chạy
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true # Tắt nếu app cần write vào filesystem
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 3000
+  targetPort: 3000 #đổi so với port app bên trong container
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/rate-limit: "100"
+  hosts:
+    - host: pp191225.api.thang2k6adu.com
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 3000
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /
+    port: 3000
+  initialDelaySeconds: 0
+  periodSeconds: 10
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 30 # 5 phút
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+env:
+  - name: PORT
+    value: "3000"
+  - name: NODE_ENV
+    value: "production"
+  - name: LOG_LEVEL
+    value: "info"
+
+# Environment variables from ConfigMap & Secret
+envFrom: []
+  # - configMapRef:
+  #     name: app-config
+  # - secretRef:
+  #     name: app-secrets
+
+configMap:
+  enabled: false
+  data: {}
+    # application.properties: |
+    #   server.port=8080
+
+secrets:
+  enabled: false
+  data: {}
+    # DATABASE_PASSWORD: "base64-encoded-password"
+
+volumes:
+  # Tạo ra 1 volume, vd .../volumes/.../tmp/
+  - name: tmp
+    emptyDir: {}
+  # Tạo ra 1 volume, vd .../volumes/.../cache/
+  - name: cache
+    emptyDir: {}
+  # - name: config
+  #   configMap:
+  #     name: app-config
+  # - name: secrets
+  #   secret:
+  #     secretName: app-secrets
+
+volumeMounts:
+  - name: tmp
+    # mountpath là path trong container, not pod, tất cả trong mountpath sẽ trỏ về volume /tmp, là cái name ý
+    mountPath: /tmp
+  - name: cache
+    # tất cả data của /app/cache sẽ trỏ về volume .../volumes/.../cache/
+    mountPath: /app/cache
+  # - name: config
+  #   mountPath: /app/config
+  #   readOnly: true
+  # - name: secrets
+  #   mountPath: /app/secrets
+  #   readOnly: true
+
+persistence:
+  enabled: false
+  storageClass: "" # "" = default, "-" = disable dynamic provisioning
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /app/data
+  annotations: {}
+
+# tránh downtime khi bảo trì node, ít nhất 1 pod chạy
+# Ví dụ dran node, đuổi pod khỏi node khi bảo trì
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  # maxUnavailable: 1
+
+nodeSelector: {}
+  # kubernetes.io/arch: amd64
+  # node-role: backend
+
+# pod chịu chạy trên các node có taint cụ thể
+tolerations: []
+  # - key: "backend"
+  #   operator: "Equal"
+  #   value: "true"
+  #   effect: "NoSchedule"
+
+affinity:
+  podAntiAffinity: # Không chạy 2 pod trên cùng node
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - '{{ include "chart.fullname" . }}'
+          topologyKey: kubernetes.io/hostname
+
+# Khai báo Prometheus ServiceMonitor, dùng với Prometheus Operator, để tự động cấu hình scrape và lấy metrics
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /metrics
+  labels: {}
+
+# sidecar là các container phụ chạy cùng pod
+sidecars: []
+  # - name: log-shipper
+  #   image: fluent/fluent-bit:latest
+  #   volumeMounts:
+  #     - name: logs
+  #       mountPath: /var/log
+
+initContainers: []
+  # - name: wait-for-db
+  #   image: busybox:latest
+  #   command: ['sh', '-c', 'until nc -z postgres 5432; do sleep 1; done']
+
+# chứa các hook vòng đời của container như preStop, postStart, ...
+# Ở đây là trước khi stop thì chờ 15s đã, cho app kịp xử lý request đang dở, đóng connections
+lifecycle: {}
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "sleep 15"]  # Graceful shutdown
+
+# ko bật thì bất kì pod nào cũng có thể kết nối đến pod này, gọi bất kì cái nào
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+  # Cho phép kết nối với bất kì pod nào có port như bên dưới
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432 # PostgreSQL
+        - protocol: TCP
+          port: 6379 # Redis
+
+# RBAC (nếu cần truy cập Kubernetes API)
+rbac:
+  create: false
+  rules: []
+    # - apiGroups: [""]
+    #   resources: ["configmaps"]
+    #   verbs: ["get", "list"]
