@@ -1,4 +1,4 @@
-# Kubernetes GitOps Repo
+# Kubernetes GitOps Repo (kube-prometheus-stack + nginx + k8s dashboard)
 
 > **Note for Testing:** Make sure that your master nodes have at least 3GB RAM. Worker nodes should be at least 2GB RAM for properly working & testing.
 
