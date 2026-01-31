@@ -64,6 +64,13 @@ cluster-XXXX/ # 1
 
 Then, just apply this repo.
 
+install the argocd first to apply 
+dont worry, after that all resource will be synced with remote repo
+without manual installation, we couldnot apply repo
+
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/ha/install.yaml
+
 ```shell
 kubectl apply -k https://github.com/thang2k6adu/kubernetes-infra/cluster-dev/bootstrap/overlays/default
 ```
