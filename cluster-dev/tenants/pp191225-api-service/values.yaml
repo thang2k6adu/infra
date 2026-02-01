@@ -112,20 +112,13 @@ autoscaling:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
-env:
-  - name: PORT
-    value: "3000"
-  - name: NODE_ENV
-    value: "production"
-  - name: LOG_LEVEL
-    value: "info"
 
 # Environment variables from ConfigMap & Secret
-envFrom: []
-  # - configMapRef:
-  #     name: app-config
-  # - secretRef:
-  #     name: app-secrets
+envFrom:
+  - configMapRef:
+      name: pp191225-config
+  - secretRef:
+      name: pp191225-secret
 
 configMap:
   enabled: false

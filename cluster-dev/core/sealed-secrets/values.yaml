@@ -1,0 +1,2 @@
+# kubeseal mặc định tìm cái này, ko set helm sẽ đặt kiểu khác
+fullnameOverride: sealed-secrets-controller
