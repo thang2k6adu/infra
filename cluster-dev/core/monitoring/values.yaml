@@ -1,11 +1,14 @@
 global:
-  nodeSelector:
-    node-role: worker
-  # tolerations:
-  #   - key: "node-role"
-  #     operator: "Equal"
-  #     value: "worker"
-  #     effect: "NoSchedule"
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          preference:
+            matchExpressions:
+              - key: node-role
+                operator: In
+                values:
+                  - worker
 
 grafana:
   enabled: false
