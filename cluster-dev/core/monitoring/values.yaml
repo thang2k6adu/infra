@@ -1,3 +1,12 @@
+global:
+  nodeSelector:
+    node-role: worker
+  # tolerations:
+  #   - key: "node-role"
+  #     operator: "Equal"
+  #     value: "worker"
+  #     effect: "NoSchedule"
+
 grafana:
   enabled: false
 
@@ -36,10 +45,10 @@ prometheus:
     resources:
       requests:
         cpu: 100m
-        memory: 128Mi
+        memory: 256Mi
       limits:
         cpu: 300m
-        memory: 256Mi
+        memory: 512Mi
 
     storageSpec:
       volumeClaimTemplate:
