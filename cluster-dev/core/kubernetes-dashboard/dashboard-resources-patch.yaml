@@ -13,6 +13,7 @@ spec:
       labels:
         k8s-app: kubernetes-dashboard
     spec:
+      serviceAccountName: kubernetes-dashboard-admin
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
