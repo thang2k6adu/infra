@@ -9,6 +9,8 @@ resources:
 patches:
   - path: dashboard-resources-patch.yaml
     target:
+      # Tìm deployment kubernetes-dashboard để áp dụng patch
+      # Chỉ merge những field bạn khai báo trong patch
       kind: Deployment
       name: kubernetes-dashboard
       namespace: kubernetes-dashboard

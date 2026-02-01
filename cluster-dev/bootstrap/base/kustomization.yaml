@@ -9,6 +9,10 @@ resources:
   # For production (multi replicas, Redis HA, minimum 3GB RAM)
   # - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/ha/install.yaml
 
-patchesStrategicMerge:
-  - patch-argocd-cm.yaml
-  - patch-argocd-deployment.yaml
+patches: # ← Đổi từ patchesStrategicMerge
+  - path: patch-argocd-cm.yaml
+  - path: patch-argocd-deployment.yaml
+    target: # ← Thêm target
+      kind: Deployment
+      name: argocd-server
+      namespace: argocd
