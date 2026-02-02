@@ -1,0 +1,7 @@
+﻿apiVersion: v1
+data:
+  ALGOLIA_APP_ID: ALGOLIA_INDEX_NAME=APP_NAME=nest-boilerplateAWS_REGION=us-east-1AWS_S3_BUCKET=CLOUDINARY_CLOUD_NAME=ELASTICSEARCH_NODE=http://localhost:9200FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@pp191225-53185.iam.gserviceaccount.comJWT_EXPIRES_IN=2hJWT_REFRESH_EXPIRES_IN=7dMAIL_FROM=noreply@example.comMAIL_HOST=smtp.gmail.comMAIL_PORT=587MAIL_SECURE=falseMAIL_USER=your-email@gmail.comNODE_ENV=developmentPORT=3000REDIS_HOST=adapting-chow-38310.upstash.ioREDIS_PORT=6379REDIS_TLS=trueSEARCH_PROVIDER=elasticsearchSTORAGE_LOCAL_DEST=./uploadsSTORAGE_PROVIDER=local
+kind: ConfigMap
+metadata:
+  name: pp191225-config
+  namespace: pp191225-api
