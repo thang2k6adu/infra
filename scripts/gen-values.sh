@@ -2,11 +2,60 @@
 
 set -e
 
-ClusterName="$1"
+# Parse parameters
+ClusterName=""
+TenantsPath="tenants"  # Default value
+RootDir=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --ClusterName) ClusterName="$2"; shift 2 ;;
+    --TenantsPath) TenantsPath="$2"; shift 2 ;;
+    --RootDir) RootDir="$2"; shift 2 ;;
+    --ProjectName) ProjectName="$2"; shift 2 ;;
+    *) 
+      # Handle positional arguments for backward compatibility
+      if [[ -z "$ClusterName" ]]; then
+        ClusterName="$1"
+        shift
+      elif [[ "$TenantsPath" == "tenants" ]]; then
+        TenantsPath="$1"
+        shift
+      elif [[ -z "$RootDir" ]]; then
+        RootDir="$1"
+        shift
+      else
+        echo "Unknown parameter: $1"
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+# Backward compatibility: handle positional arguments if still empty
+if [[ -z "$ClusterName" && $# -gt 0 ]]; then
+  ClusterName="$1"
+  shift
+fi
+
+if [[ "$TenantsPath" == "tenants" && $# -gt 0 ]]; then
+  TenantsPath="$1"
+  shift
+fi
+
+if [[ -z "$RootDir" && $# -gt 0 ]]; then
+  RootDir="$1"
+fi
 
 if [[ -z "$ClusterName" ]]; then
   echo "ClusterName is required"
   exit 1
+fi
+
+echo "Using TenantsPath: $TenantsPath"
+if [[ -n "$RootDir" ]]; then
+  echo "Using RootDir: $RootDir"
 fi
 
 scriptRoot="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,16 +74,28 @@ if [[ -z "$name" || "$name" == "null" ]]; then
   exit 1
 fi
 
-rootDir="$(GetProjectRoot)"
+# Sử dụng RootDir nếu được cung cấp, nếu không thì dùng GetProjectRoot
+if [[ -n "$RootDir" ]]; then
+  if [[ ! -d "$RootDir" ]]; then
+    echo "Root directory not found: $RootDir"
+    exit 1
+  fi
+  rootDir="$RootDir"
+else
+  rootDir="$(GetProjectRoot)"
+fi
+
 clusterPath="$rootDir/$ClusterName"
 if [[ ! -d "$clusterPath" ]]; then
   echo "Cluster directory not found: $clusterPath"
   exit 1
 fi
 
-tenantDir="$clusterPath/tenants/$name"
+# Use TenantsPath instead of hardcoded "tenants"
+tenantDir="$clusterPath/$TenantsPath/$name"
 if [[ ! -d "$tenantDir" ]]; then
   echo "Tenant directory not found: $tenantDir"
+  echo "Please run gen-folder.sh first to create the tenant directory"
   exit 1
 fi
 

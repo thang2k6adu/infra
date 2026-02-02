@@ -1,13 +1,71 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Parse parameters
+CertPath=""
+ClusterName=""
+TenantsPath="tenants"  # Default value
+RootDir=""
 
-CertPath="$1"
-ClusterName="$2"
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --CertPath) CertPath="$2"; shift 2 ;;
+    --ClusterName) ClusterName="$2"; shift 2 ;;
+    --TenantsPath) TenantsPath="$2"; shift 2 ;;
+    --RootDir) RootDir="$2"; shift 2 ;;
+    --ProjectName) ProjectName="$2"; shift 2 ;;
+    *) 
+      # Handle positional arguments for backward compatibility
+      if [[ -z "$CertPath" ]]; then
+        CertPath="$1"
+        shift
+      elif [[ -z "$ClusterName" ]]; then
+        ClusterName="$1"
+        shift
+      elif [[ "$TenantsPath" == "tenants" ]]; then
+        TenantsPath="$1"
+        shift
+      elif [[ -z "$RootDir" ]]; then
+        RootDir="$1"
+        shift
+      else
+        echo "Unknown parameter: $1"
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+# Backward compatibility: handle positional arguments if still empty
+if [[ -z "$CertPath" && $# -gt 0 ]]; then
+  CertPath="$1"
+  shift
+fi
+
+if [[ -z "$ClusterName" && $# -gt 0 ]]; then
+  ClusterName="$1"
+  shift
+fi
+
+if [[ "$TenantsPath" == "tenants" && $# -gt 0 ]]; then
+  TenantsPath="$1"
+  shift
+fi
+
+if [[ -z "$RootDir" && $# -gt 0 ]]; then
+  RootDir="$1"
+fi
 
 if [[ -z "${CertPath:-}" || -z "${ClusterName:-}" ]]; then
-  echo "Usage: $0 <CertPath> <ClusterName>"
+  echo "Usage: $0 <CertPath> <ClusterName> [TenantsPath] [RootDir]"
+  echo "       $0 --CertPath <CertPath> --ClusterName <ClusterName> [--TenantsPath <TenantsPath>] [--RootDir <RootDir>]"
   exit 1
+fi
+
+echo "Using TenantsPath: $TenantsPath"
+if [[ -n "$RootDir" ]]; then
+  echo "Using RootDir: $RootDir"
 fi
 
 scriptRoot="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -60,14 +118,26 @@ echo "  ConfigMap:  $configMapName"
 echo "  Secret:     $secretName"
 echo ""
 
-rootDir="$(GetProjectRoot)"
+# Sử dụng RootDir nếu được cung cấp, nếu không thì dùng GetProjectRoot
+if [[ -n "$RootDir" ]]; then
+  if [[ ! -d "$RootDir" ]]; then
+    echo "Root directory not found: $RootDir"
+    exit 1
+  fi
+  rootDir="$RootDir"
+else
+  rootDir="$(GetProjectRoot)"
+fi
+
 clusterPath="$rootDir/$ClusterName"
-tenantDir="$clusterPath/tenants/$serviceName"
+
+# Use TenantsPath instead of hardcoded "tenants"
+tenantDir="$clusterPath/$TenantsPath/$serviceName"
 
 if [[ ! -d "$tenantDir" ]]; then
   echo "Tenant directory not found: $tenantDir
 
-Please run gen-folder.ps1 first to create the tenant structure."
+Please run gen-folder.sh first to create the tenant structure."
   exit 1
 fi
 
@@ -141,7 +211,7 @@ kustomizationFile="kustomization.yaml"
 if [[ ! -f "$kustomizationFile" ]]; then
   echo "kustomization.yaml not found in $tenantDir
 
-Please run gen-folder.ps1 first."
+Please run gen-folder.sh first."
   exit 1
 fi
 

@@ -1,0 +1,3 @@
+directoryStructure:
+  servicesPath: "services"
+  tenantsPath: "tenants"

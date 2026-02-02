@@ -7,7 +7,6 @@ CertPath=""
 DryRun=false
 VerboseOutput=false
 
-# Parse arguments
 while [[ $# -gt 0 ]]; do
   case $1 in
     --ProjectName) ProjectName="$2"; shift 2 ;;
@@ -29,6 +28,10 @@ fi
 
 source "$libPath/common.sh"
 source "$libPath/validation.sh"
+
+trap 'echo "Operation cancelled by user"; exit 130' INT TERM
+
+serviceName=""
 
 WriteBanner() {
   local Text="$1"
@@ -72,6 +75,27 @@ GetUserInput() {
   done
 }
 
+# Function to read directory structure from cluster-config.yaml
+ReadClusterConfig() {
+  local clusterPath="$1"
+  local configFile="$clusterPath/cluster-config.yaml"
+  
+  if [[ ! -f "$configFile" ]]; then
+    echo "Cluster configuration file not found: $configFile"
+    return 1
+  fi
+  
+  # Use yq to extract directory structure
+  local servicesPath=$(yq '.directoryStructure.servicesPath // "services"' "$configFile")
+  local tenantsPath=$(yq '.directoryStructure.tenantsPath // "tenants"' "$configFile")
+  
+  # Remove quotes if present
+  servicesPath="${servicesPath//\"/}"
+  tenantsPath="${tenantsPath//\"/}"
+  
+  echo "$servicesPath:$tenantsPath"
+}
+
 clear
 echo "This script will deploy a service configuration to your cluster"
 echo "using GitOps pattern with ArgoCD."
@@ -94,45 +118,14 @@ WriteSection "Step 2/6: Locating Project Root"
 rootDir=$(GetProjectRoot) || { echo "Failed to locate project root"; exit 1; }
 echo "Project root: $rootDir"
 
-WriteSection "Step 3/6: Service Selection"
-
-servicesPath="$rootDir/services"
-availableServices=()
-
-if [[ -d "$servicesPath" ]]; then
-  mapfile -t availableServices < <(ls -d "$servicesPath"/*/ 2>/dev/null | xargs -n1 basename)
-fi
-
-if [[ ${#availableServices[@]} -eq 0 ]]; then
-  echo "No services found in $servicesPath"
-  exit 1
-fi
-
-echo ""
-echo "Available services:"
-for s in "${availableServices[@]}"; do
-  echo "  • $s"
-done
-echo ""
-
-if [[ -z "$ProjectName" ]]; then
-  read -rp "Enter service name: " ProjectName
-fi
-
-if [[ -z "$ProjectName" ]]; then
-  echo "Service name is required"
-  exit 1
-fi
-
-serviceDir=$(TestServiceDirectory "$ProjectName" "$rootDir") || exit 1
-echo "Service directory validated: $serviceDir"
-
 WriteSection "Step 4/6: Cluster Selection"
 
 clustersPath="$rootDir"
 availableClusters=()
 
-mapfile -t availableClusters < <(ls -d "$clustersPath"/cluster-* 2>/dev/null | xargs -n1 basename)
+while IFS= read -r -d $'\0' dir; do
+  availableClusters+=("$(basename "$dir")")
+done < <(find "$clustersPath" -maxdepth 1 -mindepth 1 -type d -name "cluster-*" -print0 2>/dev/null)
 
 if [[ ${#availableClusters[@]} -eq 0 ]]; then
   echo "No clusters found in $clustersPath"
@@ -155,9 +148,69 @@ if [[ -z "$ClusterName" ]]; then
   exit 1
 fi
 
-clusterPath=$(TestClusterDirectory "$ClusterName" "$rootDir") || exit 1
+clusterPath="$rootDir/$ClusterName"
+if [[ ! -d "$clusterPath" ]]; then
+  echo "Cluster directory not found: $clusterPath"
+  exit 1
+fi
 echo "Cluster directory validated: $clusterPath"
 
+# Read cluster configuration for directory structure
+WriteSection "Reading Cluster Configuration"
+
+configResult=$(ReadClusterConfig "$clusterPath") || exit 1
+IFS=':' read -r clusterServicesPath clusterTenantsPath <<< "$configResult"
+
+# Build full paths
+clusterServicesFullPath="$clusterPath/$clusterServicesPath"
+clusterTenantsFullPath="$clusterPath/$clusterTenantsPath"
+
+echo "Cluster services path: $clusterServicesFullPath"
+echo "Cluster tenants path: $clusterTenantsFullPath"
+
+WriteSection "Step 3/6: Service Selection"
+
+# Path to service configurations within the cluster
+availableServices=()
+
+if [[ -d "$clusterServicesFullPath" ]]; then
+  while IFS= read -r -d $'\0' dir; do
+    availableServices+=("$(basename "$dir")")
+  done < <(find "$clusterServicesFullPath" -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null)
+fi
+
+if [[ ${#availableServices[@]} -eq 0 ]]; then
+  echo "No services found in $clusterServicesFullPath"
+  exit 1
+fi
+
+echo ""
+echo "Available services in cluster $ClusterName:"
+for s in "${availableServices[@]}"; do
+  echo "  • $s"
+done
+echo ""
+
+if [[ -z "$ProjectName" ]]; then
+  read -rp "Enter service name: " ProjectName
+fi
+
+if [[ -z "$ProjectName" ]]; then
+  echo "Service name is required"
+  exit 1
+fi
+
+# Test service configuration directory within cluster
+serviceDir="$clusterServicesFullPath/$ProjectName"
+if [[ ! -d "$serviceDir" ]] || [[ ! -f "$serviceDir/service.yaml" ]]; then
+  echo "Service configuration not found in cluster $ClusterName: $serviceDir"
+  echo "Expected to find service.yaml in the directory"
+  exit 1
+fi
+
+echo "Service configuration directory validated: $serviceDir"
+
+serviceName=$(yq '.service.name' "$serviceDir/service.yaml")
 
 WriteSection "Step 5/6: Certificate Selection"
 
@@ -172,6 +225,9 @@ echo "Using certificate: $CertPath"
 
 WriteSection "Step 6/6: Deployment Execution"
 
+# Define tenant directory based on cluster configuration
+tenantDir="$clusterTenantsFullPath/$serviceName"
+
 if [[ "$DryRun" == true ]]; then
   echo "======================================="
   echo "  DRY RUN MODE - No changes will be made"
@@ -180,46 +236,44 @@ if [[ "$DryRun" == true ]]; then
   echo "Would execute the following commands:"
   echo ""
   echo "1. Generate tenant folder:"
-  echo "   $scriptRoot/gen-folder.sh --ClusterName $ClusterName"
+  echo "   $scriptRoot/gen-folder.sh --RootDir \"$rootDir\" --ClusterName \"$ClusterName\" --TenantsPath \"$clusterTenantsPath\" --ProjectName \"$ProjectName\""
   echo ""
   echo "2. Generate Helm values:"
-  echo "   $scriptRoot/gen-values.sh --ClusterName $ClusterName"
+  echo "   $scriptRoot/gen-values.sh --RootDir \"$rootDir\" --ClusterName \"$ClusterName\" --TenantsPath \"$clusterTenantsPath\" --ProjectName \"$ProjectName\""
   echo ""
   echo "3. Seal secrets:"
-  echo "   $scriptRoot/seal-env.sh --CertPath $CertPath --ClusterName $ClusterName"
+  echo "   $scriptRoot/seal-env.sh --CertPath \"$CertPath\" --RootDir \"$rootDir\" --ClusterName \"$ClusterName\" --TenantsPath \"$clusterTenantsPath\" --ProjectName \"$ProjectName\""
   echo ""
   echo "Output directory:"
-  echo "   $clusterPath/tenants/$(yq '.service.name' "$serviceDir/service.yaml")"
+  echo "   $tenantDir"
   exit 0
 fi
 
 originalLocation=$(pwd)
-cd "$serviceDir"
+cd "$serviceDir" || { echo "Failed to change to service directory"; exit 1; }
 
 echo "[1/3] Generating tenant folder structure..."
-"$scriptRoot/gen-folder.sh" "$ClusterName" || exit 1
+"$scriptRoot/gen-folder.sh" --RootDir "$rootDir" --ClusterName "$ClusterName" --TenantsPath "$clusterTenantsPath" --ProjectName "$ProjectName" || { cd "$originalLocation"; exit 1; }
 echo "Tenant folder structure created"
 
 echo "[2/3] Generating Helm values from service configuration..."
-"$scriptRoot/gen-values.sh" "$ClusterName" || exit 1
+"$scriptRoot/gen-values.sh" --RootDir "$rootDir" --ClusterName "$ClusterName" --TenantsPath "$clusterTenantsPath" --ProjectName "$ProjectName" || { cd "$originalLocation"; exit 1; }
 echo "Helm values.yaml created"
 
 echo "[3/3] Sealing environment variables with kubeseal..."
-"$scriptRoot/seal-env.sh" "$CertPath" "$ClusterName" || exit 1
+"$scriptRoot/seal-env.sh" --CertPath "$CertPath" --RootDir "$rootDir" --ClusterName "$ClusterName" --TenantsPath "$clusterTenantsPath" --ProjectName "$ProjectName" || { cd "$originalLocation"; exit 1; }
 echo "Secrets sealed successfully"
 
 cd "$originalLocation"
-
-tenantDir="$clusterPath/tenants/$(yq '.service.name' "$serviceDir/service.yaml")"
 
 echo "======================================================="
 echo "  [+] Deployment configuration completed successfully!"
 echo "======================================================="
 
 echo "Deployment Details:"
-echo "  Service:   $(yq '.service.name' "$serviceDir/service.yaml")"
+echo "  Service:   $serviceName"
 echo "  Cluster:   $ClusterName"
-echo "  Namespace: $(yq '.service.name' "$serviceDir/service.yaml")"
+echo "  Namespace: $serviceName"
 echo "  Output:    $tenantDir"
 echo ""
 
@@ -227,7 +281,15 @@ echo "Generated Files:"
 files=("namespace.yaml" "kustomization.yaml" "values.yaml" "configmap.yaml" "sealed-secret.yaml")
 for f in "${files[@]}"; do
   if [[ -f "$tenantDir/$f" ]]; then
-    size=$(stat -c%s "$tenantDir/$f")
+    if command -v stat >/dev/null 2>&1; then
+      if stat --version 2>/dev/null | grep -q GNU; then
+        size=$(stat -c%s "$tenantDir/$f" 2>/dev/null || echo "N/A")
+      else
+        size=$(stat -f%z "$tenantDir/$f" 2>/dev/null || echo "N/A")
+      fi
+    else
+      size=$(wc -c < "$tenantDir/$f" 2>/dev/null | awk '{print $1}')
+    fi
     echo "  [+] $f ($size bytes)"
   fi
 done
