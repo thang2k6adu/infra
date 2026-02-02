@@ -16,10 +16,8 @@ param(
     [switch]$VerboseOutput
 )
 
-# Stop on any error
 $ErrorActionPreference = "Stop"
 
-# Import required libraries
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $libPath = Join-Path $scriptRoot "lib"
 
@@ -31,7 +29,6 @@ if (!(Test-Path (Join-Path $libPath "common.ps1")) -or !(Test-Path (Join-Path $l
 . (Join-Path $libPath "common.ps1")
 . (Join-Path $libPath "validation.ps1")
 
-#region Helper Functions
 
 function Write-Banner {
     param([string]$Text)
@@ -75,22 +72,14 @@ function Get-UserInput {
     return $input.Trim()
 }
 
-#endregion
-
-#region Main Script
-
 try {
-    # Clear screen for better UX
     Clear-Host
     
     Write-Banner "Kubernetes Service Deployment Tool"
     Write-Host "This script will deploy a service configuration to your cluster"
     Write-Host "using GitOps pattern with ArgoCD." -ForegroundColor Gray
     Write-Host ""
-    
-    # ---------------------------------------------------------
-    # STEP 1: Check Dependencies
-    # ---------------------------------------------------------
+
     Write-Section "Step 1/6: Checking Dependencies"
     
     try {
@@ -111,10 +100,7 @@ try {
         Write-Host "Please install missing dependencies and try again." -ForegroundColor Yellow
         exit 1
     }
-    
-    # ---------------------------------------------------------
-    # STEP 2: Locate Project Root
-    # ---------------------------------------------------------
+
     Write-Section "Step 2/6: Locating Project Root"
     
     try {
@@ -128,9 +114,6 @@ try {
         exit 1
     }
     
-    # ---------------------------------------------------------
-    # STEP 3: Get/Validate Service Name
-    # ---------------------------------------------------------
     Write-Section "Step 3/6: Service Selection"
     
     if (!$ProjectName) {
@@ -149,7 +132,6 @@ try {
         $serviceDir = Test-ServiceDirectory -ProjectName $ProjectName -RootDir $rootDir
         Write-ColorOutput "Service directory validated: $serviceDir" -Type Success
         
-        # Validate and display service configuration
         $serviceConfig = Get-ServiceConfig -ServiceDir $serviceDir
         Test-ServiceSchema -Config $serviceConfig
         
@@ -160,7 +142,6 @@ try {
         Write-Host "  Port: $($serviceConfig.network.port)" -ForegroundColor Gray
         Write-Host "  Replicas: $($serviceConfig.replicas)" -ForegroundColor Gray
         
-        # Validate environment files
         if ($VerboseOutput) {
             $envValidation = Test-EnvironmentFiles -ServiceDir $serviceDir
             Write-Host "  Environment Variables:" -ForegroundColor Gray
@@ -182,9 +163,6 @@ try {
         exit 1
     }
     
-    # ---------------------------------------------------------
-    # STEP 4: Get/Validate Cluster Name
-    # ---------------------------------------------------------
     Write-Section "Step 4/6: Cluster Selection"
     
     if (!$ClusterName) {
@@ -205,9 +183,6 @@ try {
         exit 1
     }
     
-    # ---------------------------------------------------------
-    # STEP 5: Get/Validate Certificate
-    # ---------------------------------------------------------
     Write-Section "Step 5/6: Certificate Selection"
     
     if (!$CertPath) {
@@ -222,7 +197,6 @@ try {
         }
     }
     else {
-        # Validate provided certificate path
         if (!(Test-Path $CertPath)) {
             Write-ColorOutput "Certificate file not found: $CertPath" -Type Error
             exit 1
@@ -232,9 +206,6 @@ try {
     
     Write-ColorOutput "Using certificate: $CertPath" -Type Success
     
-    # ---------------------------------------------------------
-    # STEP 6: Execute Deployment (or Dry Run)
-    # ---------------------------------------------------------
     Write-Section "Step 6/6: Deployment Execution"
     
     if ($DryRun) {
@@ -261,16 +232,13 @@ try {
         exit 0
     }
     
-    # Save current location
     $originalLocation = Get-Location
     
     try {
-        # Change to service directory for script execution
         Set-Location $serviceDir
         Write-ColorOutput "Working directory: $serviceDir" -Type Info
         Write-Host ""
         
-        # Execute Step 1: Generate folder structure
         Write-Host "[1/3] Generating tenant folder structure..." -ForegroundColor Cyan
         try {
             & (Join-Path $scriptRoot "gen-folder.ps1") -ClusterName $ClusterName
@@ -283,7 +251,6 @@ try {
         
         Write-Host ""
         
-        # Execute Step 2: Generate values.yaml
         Write-Host "[2/3] Generating Helm values from service configuration..." -ForegroundColor Cyan
         try {
             & (Join-Path $scriptRoot "gen-values.ps1") -ClusterName $ClusterName
@@ -296,7 +263,7 @@ try {
         
         Write-Host ""
         
-        # Execute Step 3: Seal secrets
+
         Write-Host "[3/3] Sealing environment variables with kubeseal..." -ForegroundColor Cyan
         try {
             & (Join-Path $scriptRoot "seal-env.ps1") -CertPath $CertPath -ClusterName $ClusterName
@@ -307,9 +274,6 @@ try {
             throw "Failed to seal secrets: $($_.Exception.Message)"
         }
         
-        # ---------------------------------------------------------
-        # Success Summary
-        # ---------------------------------------------------------
         Write-Host "" 
         Write-Host "=======================================================" -ForegroundColor Green
         Write-Host "  [+] Deployment configuration completed successfully!" -ForegroundColor Green
@@ -340,27 +304,9 @@ try {
                 Write-Host "  [+] $file ($size bytes)" -ForegroundColor Gray
             }
         }
-        
         Write-Host ""
-        Write-Host "Next Steps:" -ForegroundColor Yellow
-        Write-Host "  1. Review the generated files in:" -ForegroundColor White
-        Write-Host "     $tenantDir" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "  2. Commit the changes to Git:" -ForegroundColor White
-        Write-Host "     git add $ClusterName/tenants/$($serviceConfig.service.name)" -ForegroundColor Gray
-        Write-Host "     git commit -m ""Add $($serviceConfig.service.name) to $ClusterName""" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "  3. Push to trigger ArgoCD deployment:" -ForegroundColor White
-        Write-Host "     git push origin main" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "  4. Monitor deployment in ArgoCD:" -ForegroundColor White
-        Write-Host "     kubectl get applications -n argocd" -ForegroundColor Gray
-        Write-Host "     kubectl get pods -n $($serviceConfig.service.name)" -ForegroundColor Gray
-        Write-Host ""
-        
     }
     finally {
-        # Always return to original location
         Set-Location $originalLocation
     }
 }
@@ -390,4 +336,3 @@ catch {
     exit 1
 }
 
-#endregion

@@ -9,7 +9,6 @@ function Test-ServiceDirectory {
     
     $serviceDir = Join-Path $RootDir "services\$ProjectName"
     
-    # Check if service directory exists
     if (!(Test-Path $serviceDir)) {
         $available = Get-ChildItem -Path (Join-Path $RootDir "services") -Directory -ErrorAction SilentlyContinue
         
@@ -21,7 +20,6 @@ function Test-ServiceDirectory {
         throw $errorMsg
     }
     
-    # Check required files
     $requiredFiles = @{
         "service.yaml" = "Service configuration file"
         ".env" = "Environment variables file"
@@ -48,19 +46,7 @@ function Test-ServiceDirectory {
 }
 
 function Test-ClusterDirectory {
-    <#
-    .SYNOPSIS
-        Validate that cluster directory exists
-        
-    .PARAMETER ClusterName
-        Name of the cluster
-        
-    .PARAMETER RootDir
-        Project root directory
-        
-    .RETURNS
-        Full path to the cluster directory if valid
-    #>
+
     param(
         [Parameter(Mandatory=$true)]
         [string]$ClusterName,
@@ -85,7 +71,6 @@ function Test-ClusterDirectory {
         throw $errorMsg
     }
     
-    # Validate cluster structure (optional but recommended)
     $expectedDirs = @("tenants", "core", "components")
     $hasStructure = $false
     
@@ -105,19 +90,6 @@ function Test-ClusterDirectory {
 }
 
 function Get-CertificateFile {
-    <#
-    .SYNOPSIS
-        Find and select certificate file (.pem)
-        
-    .PARAMETER RootDir
-        Project root directory
-        
-    .PARAMETER Interactive
-        If true, prompt user to select when multiple certs exist
-        
-    .RETURNS
-        Full path to the certificate file
-    #>
     param(
         [Parameter(Mandatory=$true)]
         [string]$RootDir,
@@ -136,15 +108,12 @@ function Get-CertificateFile {
         return $pemFiles[0].FullName
     }
     
-    # Multiple certificates found
     if (!$Interactive) {
-        # Non-interactive mode: use the first one and warn
         Write-Warning "Multiple certificate files found. Using first one: $($pemFiles[0].Name)"
         Write-Warning "Use -CertPath parameter to specify a different certificate."
         return $pemFiles[0].FullName
     }
     
-    # Interactive mode: let user choose
     Write-Host "`nMultiple certificate files found:" -ForegroundColor Cyan
     for ($i = 0; $i -lt $pemFiles.Count; $i++) {
         $fileInfo = $pemFiles[$i]
@@ -167,13 +136,7 @@ function Get-CertificateFile {
 }
 
 function Test-ServiceSchema {
-    <#
-    .SYNOPSIS
-        Validate service.yaml configuration schema
-        
-    .PARAMETER Config
-        Parsed service configuration object
-    #>
+
     param(
         [Parameter(Mandatory=$true)]
         $Config
@@ -206,7 +169,6 @@ function Test-ServiceSchema {
         }
     }
     
-    # Validate numeric fields
     if ($Config.network.port) {
         $port = $Config.network.port
         if ($port -lt 1 -or $port -gt 65535) {
@@ -214,14 +176,12 @@ function Test-ServiceSchema {
         }
     }
     
-    # Validate replicas if present
     if ($Config.replicas) {
         if ($Config.replicas -lt 1) {
             $errors += "replicas must be at least 1 (got: $($Config.replicas))"
         }
     }
     
-    # Validate autoscaling if present
     if ($Config.autoscaling) {
         if ($Config.autoscaling.min -and $Config.autoscaling.max) {
             if ($Config.autoscaling.min -gt $Config.autoscaling.max) {
@@ -238,13 +198,7 @@ function Test-ServiceSchema {
 }
 
 function Test-EnvironmentFiles {
-    <#
-    .SYNOPSIS
-        Validate .env and secrets.whitelist files
-        
-    .PARAMETER ServiceDir
-        Service directory path
-    #>
+
     param(
         [Parameter(Mandatory=$true)]
         [string]$ServiceDir
@@ -253,7 +207,6 @@ function Test-EnvironmentFiles {
     $envFile = Join-Path $ServiceDir ".env"
     $whitelistFile = Join-Path $ServiceDir "secrets.whitelist"
     
-    # Read files
     $envLines = Get-Content $envFile -ErrorAction Stop | 
         Where-Object { $_ -and !$_.StartsWith("#") -and $_.Trim() -ne "" }
     
@@ -262,7 +215,6 @@ function Test-EnvironmentFiles {
     
     $warnings = @()
     
-    # Extract variable names from .env
     $envVars = @()
     foreach ($line in $envLines) {
         if ($line -match '^([^=]+)=') {
@@ -270,14 +222,12 @@ function Test-EnvironmentFiles {
         }
     }
     
-    # Check for whitelisted vars that don't exist in .env
     foreach ($var in $whitelist) {
         if ($envVars -notcontains $var) {
             $warnings += "Variable '$var' is in secrets.whitelist but not in .env"
         }
     }
     
-    # Check for duplicate variable names in .env
     $duplicates = $envVars | Group-Object | Where-Object { $_.Count -gt 1 }
     if ($duplicates) {
         foreach ($dup in $duplicates) {

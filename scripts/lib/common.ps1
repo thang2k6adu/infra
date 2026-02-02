@@ -72,17 +72,6 @@ function Test-Dependencies {
         throw $errorMsg
     }
     
-    # Check kubectl cluster connection (warning only)
-    try {
-        kubectl cluster-info 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            $warnings += "kubectl cannot connect to cluster (this is OK if you're just generating files)"
-        }
-    }
-    catch {
-        $warnings += "kubectl connection check failed: $($_.Exception.Message)"
-    }
-    
     return $warnings
 }
 
