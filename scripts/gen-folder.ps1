@@ -44,32 +44,43 @@ if (!(Test-Path $clusterPath)) {
 $serviceDir = Join-Path $clusterPath "tenants\$name"
 New-Item -ItemType Directory -Force -Path $serviceDir | Out-Null
 
-# namespace.yaml
-@"
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: $name
-"@ | Set-Content (Join-Path $serviceDir "namespace.yaml") -Encoding utf8
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$templateDir = Join-Path $scriptDir "templates"
 
-# kustomization.yaml
-@"
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+if (!(Test-Path $templateDir)) {
+    Write-Error "templates folder not found: $templateDir"
+    exit 1
+}
 
-namespace: $name
+$namespaceTplPath = Join-Path $templateDir "namespace.tpl.yaml"
+$kustomizeTplPath = Join-Path $templateDir "kustomization.tpl.yaml"
 
-resources:
-  - namespace.yaml
+if (!(Test-Path $namespaceTplPath)) {
+    Write-Error "Missing template file: namespace.tpl.yaml"
+    exit 1
+}
 
-helmCharts:
-  - name: $chartName
-    repo: $chartRepo
-    version: 0.1.0
-    releaseName: $releaseName
-    namespace: $name
-    valuesFile: values.yaml
-"@ | Set-Content (Join-Path $serviceDir "kustomization.yaml") -Encoding utf8
+if (!(Test-Path $kustomizeTplPath)) {
+    Write-Error "Missing template file: kustomization.tpl.yaml"
+    exit 1
+}
+$namespaceTpl = Get-Content $namespaceTplPath -Raw
+$kustomizeTpl = Get-Content $kustomizeTplPath -Raw
+
+$vars = @{
+  SERVICE_NAME = $name
+  CHART_NAME   = $chartName
+  CHART_REPO   = $chartRepo
+  RELEASE_NAME = $releaseName
+}
+
+foreach ($key in $vars.Keys) {
+  $namespaceTpl  = $namespaceTpl  -replace "{{${key}}}", $vars[$key]
+  $kustomizeTpl = $kustomizeTpl -replace "{{${key}}}", $vars[$key]
+}
+
+$namespaceTpl  | Set-Content (Join-Path $serviceDir "namespace.yaml") -Encoding utf8
+$kustomizeTpl | Set-Content (Join-Path $serviceDir "kustomization.yaml") -Encoding utf8
 
 Write-Host "Tenant created at: $serviceDir"
 
