@@ -26,7 +26,7 @@
 
 ## Setup trên VPS
 
-### 1. Cài đặt Nginx
+### 1. Cài đặt Nginx (Nếu thêm cluster mới thì bỏ qua)
 
 ```bash
 sudo apt update
@@ -38,12 +38,14 @@ sudo apt install nginx -y
 ### 2. Lấy IP của tất cả các node (workers:master)
 
 **Cài jq:** trên master
+
 ```bash
 sudo apt update
 sudo apt install -y jq
 ```
 
 **Lấy IP VPN:** trên master
+
 ```bash
 ansible-inventory -i ~/k3s-inventory/hosts.ini --list \
 | jq -r '
@@ -55,22 +57,24 @@ ansible-inventory -i ~/k3s-inventory/hosts.ini --list \
 ```
 
 **Phải ra:**
+
 ```nginx
-    server 10.10.10.11:30080;
-    server 10.10.10.13:30080;
-    server 10.10.10.12:30080;
+server 10.10.10.11:30080;
+server 10.10.10.13:30080;
+server 10.10.10.12:30080;
 ```
 
 ---
 
-### 3. Tạo backend list riêng
+### 3. Tạo backend list riêng (mỗi cluster 1 tên riêng)
 
 ```bash
 sudo mkdir -p /etc/nginx/backends
-sudo nano /etc/nginx/backends/ingress.conf
+sudo nano /etc/nginx/backends/cluster-prod.conf #sửa thành cluster chuẩn nhé
 ```
 
-**Nội dung `/etc/nginx/backends/ingress.conf`:**
+**Nội dung `/etc/nginx/backends/cluster-prod.conf`:**
+
 ```nginx
 server 10.10.10.11:30443;
 server 10.10.10.12:30443;
@@ -79,29 +83,36 @@ server 10.10.10.13:30443;
 
 ---
 
-### 4. Tạo upstream Global
+### 4. Tạo upstream Global (Thêm cluster mới thì bỏ qua)
 
 ```bash
 sudo nano /etc/nginx/conf.d/ingress_upstream.conf
 ```
 
-**Nội dung `/etc/nginx/conf.d/ingress_upstream.conf`:**
+**Nội dung `/etc/nginx/conf.d/ingress_upstream.conf`: (cho cả 2 môi trường, thêm cluster nào thì add cái đấy)**
+
 ```nginx
-upstream ingress_http {
+upstream cluster-prod {
     least_conn;
-    include /etc/nginx/backends/ingress.conf;
+    include /etc/nginx/backends/cluster-prod.conf;
+}
+
+upstream cluster-dev {
+    least_conn;
+    include /etc/nginx/backends/cluster-dev.conf;
 }
 ```
 
 ---
 
-### 5. Tạo security global
+### 5. Tạo security global (Thêm cluster mới thì bỏ qua)
 
 ```bash
 sudo nano /etc/nginx/conf.d/security.conf
 ```
 
 **Nội dung `/etc/nginx/conf.d/security.conf`:**
+
 ```nginx
 server_tokens off;
 
@@ -113,13 +124,14 @@ add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; prelo
 
 ---
 
-### 6. Rate limit
+### 6. Rate limit global (Thêm cluster mới thì bỏ qua)
 
 ```bash
 sudo nano /etc/nginx/conf.d/rate_limit.conf
 ```
 
 **Nội dung `/etc/nginx/conf.d/rate_limit.conf`:**
+
 ```nginx
 limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
 ```
@@ -147,17 +159,18 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/kruzetech.dev/privkey.pem;
 
     location / {
-        proxy_pass https://ingress_http;
+        proxy_pass https://ingress_prod;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_ssl_server_name on;
     }
 
+    #Tách api riêng để rate limit
     location /api/ {
         limit_req zone=api_limit burst=20 nodelay;
 
-        proxy_pass https://ingress_http;
+        proxy_pass https://ingress_prod;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -168,25 +181,33 @@ server {
 
 ---
 
-### Tạo script
+### Tạo script (Thêm cluster mới thì bỏ qua)
 
 ```bash
 sudo nano /usr/local/bin/add-domain
 sudo chmod +x /usr/local/bin/add-domain
 ```
-cài certbot
+
+**Cài certbot:**
+
+```bash
 sudo apt install -y certbot python3-certbot-nginx
+```
 
 **Nội dung `/usr/local/bin/add-domain`:**
+
 ```bash
 #!/bin/bash
 
 DOMAIN=$1
+CLUSTER=$2   # cluster-dev | cluster-prod
 
-if [ -z "$DOMAIN" ]; then
-  echo "Usage: add-domain domain.com"
+if [ -z "$DOMAIN" ] || [ -z "$CLUSTER" ]; then
+  echo "Usage: add-domain domain.com cluster-dev|cluster-prod"
   exit 1
 fi
+
+UPSTREAM="$CLUSTER"
 
 CONF="/etc/nginx/sites-available/$DOMAIN"
 
@@ -195,13 +216,14 @@ if [ -f "$CONF" ]; then
   exit 1
 fi
 
+# Step 1: HTTP config (for certbot)
 cat > $CONF <<EOF
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
 
     location / {
-        proxy_pass http://ingress_http;
+        proxy_pass http://$UPSTREAM;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -214,7 +236,6 @@ ln -s $CONF /etc/nginx/sites-enabled/$DOMAIN
 nginx -t || exit 1
 systemctl reload nginx
 
-# Xin cert
 certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m admin@$DOMAIN
 
 cat > $CONF <<EOF
@@ -242,7 +263,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
     location / {
-        proxy_pass https://ingress_http;
+        proxy_pass https://$UPSTREAM;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -252,7 +273,7 @@ server {
     location /api/ {
         limit_req zone=api_limit burst=20 nodelay;
 
-        proxy_pass https://ingress_http;
+        proxy_pass https://$UPSTREAM;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -263,6 +284,8 @@ EOF
 
 nginx -t || exit 1
 systemctl reload nginx
+
+echo "Domain $DOMAIN added to $UPSTREAM"
 ```
 
 ---
@@ -272,7 +295,8 @@ systemctl reload nginx
 ### Thêm domain
 
 ```bash
-sudo add-domain dashboard.kruzetech.dev
+sudo add-domain dashboard.thang2k6adu.xyz cluster-dev
+sudo add-domain dashboard.kruzetech.dev cluster-prod
 ```
 
 **Lưu ý:** thêm domain thì phải thêm www. nữa nhé
@@ -291,32 +315,34 @@ nginx -t && systemctl reload nginx
 ### Remove domain
 
 ```bash
-sudo rm -f /etc/nginx/sites-enabled/dashboard.kruzetech.dev
-sudo rm -f /etc/nginx/sites-available/dashboard.kruzetech.dev
-sudo certbot delete --cert-name dashboard.kruzetech.dev
+DOMAIN=dashboard.thang2k6adu.xyz
+
+sudo rm -f /etc/nginx/sites-enabled/$DOMAIN
+sudo rm -f /etc/nginx/sites-available/$DOMAIN
+sudo certbot delete --cert-name $DOMAIN
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-lên master node thêm cái để test
+---
 
-thêm ingress cho dashboard bên K3S
+## Thêm ingress cho K8s Dashboard
 
-check
-kubectl get svc -n kubernetes-dashboard
+Vào core → kubernetes dashboard
 
-tạo
-nano ~/k8s-manifest/dashboard-ingress.yaml
+**Tạo `dashboard-ingress.yaml`:**
 
+```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: dashboard-ingress
   namespace: kubernetes-dashboard
   annotations:
+    # bảo nginx ingress là service của cái này dùng HTTPS
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
-  - host: dashboard.kruzetech.dev
+  - host: dashboard.thang2k6adu.xyz
     http:
       paths:
       - path: /
@@ -326,54 +352,12 @@ spec:
             name: kubernetes-dashboard
             port:
               number: 443
+```
 
+**Add domain:**
 
-apply
-kubectl apply -f ~/k8s-manifest/dashboard-ingress.yaml
+```bash
+sudo add-domain dashboard.thang2k6adu.xyz cluster-dev
+```
 
-check
-kubectl get ingress -n kubernetes-dashboard
-
-lấy token
-kubectl -n kubernetes-dashboard create token kubernetes-dashboard-admin
-
-đăng nhập dashboard với token trên
-
-tạo ingress grafana
-nano ~/k8s-manifest/grafana-ingress.yaml
-
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: grafana-ingress
-  namespace: monitoring
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: grafana.kruzetech.dev
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: monitoring-grafana
-            port:
-              number: 80
-
-apply
-kubectl apply -f ~/k8s-manifest/grafana-ingress.yaml
-
-check 
-kubectl get ingress -n monitoring
-
-get user name password
-kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-user}" | base64 -d
-kubectl get secret -n monitoring monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 -d
-
-vd: admin 5JjHIRvh7GJtWjgcMDW
-
-add domain
-
-luồng chuẩn
-tạo pod -> service -> ingress -> nginx reverse proxy (add domain) -> internets
+Commit rồi đẩy lên. Chờ gitops là xong.
