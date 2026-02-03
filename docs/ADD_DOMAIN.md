@@ -295,7 +295,7 @@ echo "Domain $DOMAIN added to $UPSTREAM"
 ### Thêm domain
 
 ```bash
-sudo add-domain dashboard.thang2k6adu.xyz cluster-dev
+sudo add-domain argocd.thang2k6adu.xyz cluster-dev
 sudo add-domain dashboard.kruzetech.dev cluster-prod
 ```
 
@@ -315,7 +315,7 @@ nginx -t && systemctl reload nginx
 ### Remove domain
 
 ```bash
-DOMAIN=dashboard.thang2k6adu.xyz
+DOMAIN=argocd.thang2k6adu.xyz
 
 sudo rm -f /etc/nginx/sites-enabled/$DOMAIN
 sudo rm -f /etc/nginx/sites-available/$DOMAIN
