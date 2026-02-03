@@ -17,7 +17,8 @@ spec:
         argocd-image-updater.argoproj.io/write-back-method: git
         argocd-image-updater.argoproj.io/image-list: app=ghcr.io/thang2k6adu/pp191225-be/be
         argocd-image-updater.argoproj.io/app.update-strategy: newest-build
-        
+        argocd-image-updater.argoproj.io/app.kustomize.image-name: ghcr.io/thang2k6adu/pp191225-be/be
+
     spec:
       project: tenant
       syncPolicy:
