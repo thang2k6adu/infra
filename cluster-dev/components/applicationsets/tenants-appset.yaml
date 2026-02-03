@@ -6,7 +6,7 @@ metadata:
 spec:
   generators:
     - git:
-        repoURL: https://github.com/thang2k6adu/kubernetes-infra
+        repoURL: https://github.com/thang2k6adu/kubernetes-infra.git
         revision: main
         directories:
           - path: cluster-dev/tenants/*
@@ -31,7 +31,7 @@ spec:
             factor: 2
             maxDuration: 5m
       source:
-        repoURL: https://github.com/thang2k6adu/kubernetes-infra
+        repoURL: https://github.com/thang2k6adu/kubernetes-infra.git
         targetRevision: main
         path: "{{path}}"
       destination:
