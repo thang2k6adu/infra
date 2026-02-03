@@ -217,3 +217,10 @@ From the repository root, run the deployment script:
 ```
 
 ### Step 5: Verify and Commit
+
+
+creat a seal secret
+
+kubeseal --cert cluster-dev/pub-cert.pem -o yaml \
+< secrets.yaml > sealed-secrets.yaml
+
