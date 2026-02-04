@@ -22,7 +22,7 @@ spec:
     metadata:
       name: "{{path.basename}}"
       annotations:
-        argocd-image-updater.argoproj.io/image-list: backend={{image_repository}}
+        argocd-image-updater.argoproj.io/image-list: backend={{values.image_repository}}
         argocd-image-updater.argoproj.io/backend.update-strategy: latest
         argocd-image-updater.argoproj.io/backend.tag-filter: "^[a-f0-9]{40}$"
         argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-repo-creds
