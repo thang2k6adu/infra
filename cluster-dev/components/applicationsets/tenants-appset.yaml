@@ -5,19 +5,28 @@ metadata:
   namespace: argocd
 spec:
   generators:
-    - git:
-        repoURL: https://github.com/thang2k6adu/kubernetes-infra.git
-        revision: main
-        directories:
-          - path: cluster-dev/tenants/*
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/thang2k6adu/kubernetes-infra.git
+              revision: main
+              directories:
+                - path: cluster-dev/tenants/*
+          - git:
+              repoURL: https://github.com/thang2k6adu/kubernetes-infra.git
+              revision: main
+              files:
+                - path: cluster-dev/tenants/{{path.basename}}/values.yaml
+
   template:
     metadata:
       name: "{{path.basename}}"
       annotations:
-        argocd-image-updater.argoproj.io/image-list: backend=ghcr.io/thang2k6adu/pp191225-be/be
+        argocd-image-updater.argoproj.io/image-list: "backend={{values.image.repository}}"
         argocd-image-updater.argoproj.io/backend.update-strategy: latest
         argocd-image-updater.argoproj.io/backend.force-update: "true"
         argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-repo-creds
+
     spec:
       project: tenant
       syncPolicy:
