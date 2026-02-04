@@ -46,8 +46,7 @@ spec:
         path: "{{path}}"
         kustomize:
           images:
-          - name: "{{ image.repository }}"
-            newTag: "{{ image.tag }}"
+          - "{{ image.repository }}"
       destination:
         server: https://kubernetes.default.svc
         namespace: "{{path.basename}}"
