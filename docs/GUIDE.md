@@ -8,6 +8,10 @@
 
 4. Access `SERVICES.md` to test all the feature
 
+5. Access `REVERSE_PROXY_SETUP.md` to setup the reverse proxy
+
+6. Access `ADD_DOMAIN.md` to setup the domain
+
 ---
 
 ### Cleanup unused resources

@@ -213,7 +213,7 @@ From the repository root, run the deployment script:
 
 ```bash
 # Interactive mode (follow prompts)
-./scripts/deploy-service.sh
+./scripts/create-tenant.sh
 ```
 
 ### Step 5: Verify and Commit
