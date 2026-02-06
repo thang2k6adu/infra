@@ -23,7 +23,6 @@ terminationGracePeriodSeconds: 18000
 livekit:
   port: 7880
   log_level: info
-  key_file: "/etc/livekit/keys.yaml"
   rtc:
     tcp_port: 7881
     port_range_start: 50000
@@ -61,7 +60,7 @@ livekit:
 storeKeysInSecret:
   enabled: false
   # Sử dụng name trong meta data của secret
-  existingSecret: "livekit-server-secret"
+  existingSecret: ""
   # Thêm cấu hình cho secret, forget it, ko cần quan tâm
   secretAnnotations: {}
   labels: {}
@@ -194,17 +193,8 @@ persistence:
   # mountPath: /var/log/livekit
 
 # Extra volumes và mounts
-extraVolumes:
-  - name: livekit-keys
-    secret:
-      secretName: livekit-server-secret
-
-extraVolumeMounts:
-  - name: livekit-keys
-    mountPath: /etc/livekit/keys.yaml
-    subPath: LIVEKIT_KEYS # Tên key bên trong Secret của ông
-    readOnly: true
-
+extraVolumes: []
+extraVolumeMounts: []
 
 # Environment variables
 env:
@@ -212,6 +202,11 @@ env:
     value: "true"
   - name: LIVEKIT_DEVELOPMENT
     value: "false"
+  - name: LIVEKIT_KEYS
+    valueFrom:
+      secretKeyRef:
+        name: livekit-server-secret
+        key: LIVEKIT_KEYS
 
 initContainers: []
 sidecars: []
