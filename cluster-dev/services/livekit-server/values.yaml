@@ -64,9 +64,24 @@ livekit:
   
   # enable Health checks
   health:
-    enabled: health
+    enabled: true  # BẬT lại
     port: 8080
     path: "/health"
+    # Thêm probes config ở đây
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+      successThreshold: 1
   
   turn:
     enabled: false
