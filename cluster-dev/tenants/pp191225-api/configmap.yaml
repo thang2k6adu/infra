@@ -12,6 +12,8 @@ data:
   FIREBASE_PROJECT_ID: pp191225-53185
   JWT_EXPIRES_IN: 2h
   JWT_REFRESH_EXPIRES_IN: 7d
+  LIVEKIT_API_KEY: devkey
+  LIVEKIT_API_SECRET: devsecret123
   MAIL_FROM: noreply@example.com
   MAIL_HOST: smtp.gmail.com
   MAIL_PORT: "587"

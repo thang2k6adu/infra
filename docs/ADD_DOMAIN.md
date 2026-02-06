@@ -181,6 +181,12 @@ server {
 
 ---
 
+**Cài certbot:**
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+```
+
 ### Tạo script (Thêm cluster mới thì bỏ qua)
 
 ```bash
@@ -188,11 +194,6 @@ sudo nano /usr/local/bin/add-domain
 sudo chmod +x /usr/local/bin/add-domain
 ```
 
-**Cài certbot:**
-
-```bash
-sudo apt install -y certbot python3-certbot-nginx
-```
 
 **Nội dung `/usr/local/bin/add-domain`:**
 
