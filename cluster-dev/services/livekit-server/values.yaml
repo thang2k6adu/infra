@@ -44,6 +44,7 @@ livekit:
   
   # API keys - KHÔNG nên config trực tiếp ở đây
   keys: {}
+    # devkey: devsecret123
 
   # Bảo livekit đọc config từ secret tên là livekit-server-secret
   # Nó tự tìm key LIVEKIT_KEYS
@@ -203,6 +204,10 @@ env:
     value: "true"
   - name: LIVEKIT_DEVELOPMENT
     value: "false"
+  - name: LIVEKIT_API_KEY
+    value: devkey
+  - name: LIVEKIT_API_SECRET
+    value: devsecret123
 
 initContainers: []
 sidecars: []
