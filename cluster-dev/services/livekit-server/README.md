@@ -40,3 +40,14 @@ rtc:
 - Cần thiết cho các mạng restrictive (4G, corporate networks)
 - Cấu hình domain, TLS port, UDP port, secret
 - Yêu cầu LoadBalancer hoặc NodePort cho TURN traffic
+
+
+để livekit chạy được
+nó đọc dev key và devkey secret ở values hoặc cm
+tuy nhiên điều này rất rủi ro
+
+còn 1 cáhc nữa là tạo 1 file keys.yaml
+
+nano keys.yaml
+
+devkey: devsecret123
