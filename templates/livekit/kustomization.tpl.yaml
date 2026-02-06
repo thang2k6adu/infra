@@ -9,7 +9,7 @@ resources:
 helmCharts:
   - name: livekit-server
     repo: https://helm.livekit.io
-    version: 1.16.0
+    version: 1.9.0
     releaseName: dev
     namespace: {{SERVICE_NAME}}
     valuesFile: values.yaml

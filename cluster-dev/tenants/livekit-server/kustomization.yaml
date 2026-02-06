@@ -7,11 +7,11 @@ resources:
   - namespace.yaml
   - sealed-secret.yaml
   - configmap.yaml
-  
+
 helmCharts:
   - name: livekit-server
     repo: https://helm.livekit.io
-    version: 1.16.0
+    version: 1.9.0
     releaseName: dev
     namespace: livekit-server
     valuesFile: values.yaml
