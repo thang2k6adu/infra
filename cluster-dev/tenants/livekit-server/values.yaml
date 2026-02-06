@@ -193,8 +193,17 @@ persistence:
   # mountPath: /var/log/livekit
 
 # Extra volumes và mounts
-extraVolumes: []
-extraVolumeMounts: []
+extraVolumes:
+  - name: livekit-keys
+    secret:
+      secretName: livekit-server-secret
+      
+extraVolumeMounts:
+  - name: livekit-keys
+    mountPath: /etc/livekit/keys.yaml
+    subPath: LIVEKIT_KEYS # Tên key bên trong Secret của ông
+    readOnly: true
+
 
 # Environment variables
 env:
