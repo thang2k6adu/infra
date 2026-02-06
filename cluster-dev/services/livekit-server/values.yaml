@@ -62,6 +62,12 @@ livekit:
     enabled: false
     port: 7882
   
+  # enable Health checks
+  health:
+    enabled: true
+    port: 8080
+    path: "/health"
+  
   turn:
     enabled: false
     # Cấu hình bắt buộc nếu enable TURN
