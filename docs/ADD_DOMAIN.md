@@ -295,8 +295,7 @@ echo "Domain $DOMAIN added to $UPSTREAM"
 ### Thêm domain
 
 ```bash
-sudo add-domain argocd.thang2k6adu.xyz cluster-dev
-sudo add-domain dashboard.kruzetech.dev cluster-prod
+sudo add-domain livekit.thang2k6adu.xyz cluster-dev
 ```
 
 **Lưu ý:** thêm domain thì phải thêm www. nữa nhé

@@ -27,3 +27,5 @@
 - Nếu muốn tạo tenant mới:
   - Mở file `README.md`.
   - Làm theo các bước hướng dẫn trong đó.
+
+Add xong ingress nhớ lên reverse proxy add domain đó vào
