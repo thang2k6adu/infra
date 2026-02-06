@@ -5,7 +5,7 @@ replicaCount: 1
 
 image:
   repository: livekit/livekit-server
-  tag: "1.16.0"  # Nên ghim version cụ thể, VD: "v1.6.0"
+  tag: "latest"  # Nên ghim version cụ thể, VD: "v1.6.0"
   pullPolicy: IfNotPresent
   # Thêm imagePullSecrets nếu dùng private registry
   # pullSecrets:
