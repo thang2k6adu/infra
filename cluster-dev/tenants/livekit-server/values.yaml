@@ -42,7 +42,7 @@ livekit:
     db: 0
   
   # API keys - KHÔNG nên config trực tiếp ở đây
-  # keys: {}
+  keys: {}
     # devkey: "9f3c1a6b8d2e4f7a9c1d3e5f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5"
   
   turn:
@@ -202,11 +202,6 @@ env:
     value: "true"
   - name: LIVEKIT_DEVELOPMENT
     value: "false"
-  - name: LIVEKIT_KEYS
-    valueFrom:
-      secretKeyRef:
-        name: livekit-server-secret
-        key: LIVEKIT_KEYS
 
 initContainers: []
 sidecars: []
