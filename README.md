@@ -223,4 +223,3 @@ creat a seal secret
 
 kubeseal --cert cluster-dev/pub-cert.pem -o yaml \
 < secrets.yaml > sealed-secrets.yaml
-

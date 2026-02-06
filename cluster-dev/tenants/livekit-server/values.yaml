@@ -25,30 +25,32 @@ livekit:
     port_range_end: 60000
     # Ask STUN to get external IP (public IP)
     use_external_ip: true
-    external_ip: "203.0.113.5"  # REAL PUBLIC IP of your server (If use reverse proxy / LB, set to that IP)
+    external_ip: "13.212.50.46"  # REAL PUBLIC IP of your server (If use reverse proxy / LB, set to that IP)
     # STUN free của google
     stun_servers:
       - "stun.l.google.com:19302"
   
   redis:
-    enabled: true
+    enabled: false
     address: "redis-12345.upstash.io:6379"
-    # Tạo secret với metadata với name là passwordSecretKey
-    passwordSecretKey: redis-password
+    # Tạo secret với metadata.name là passwordSecret
     passwordSecret: livekit-server-secret
+    passwordSecretKey: REDIS_PASSWORD
     db: 0
   
   # API keys - KHÔNG nên config trực tiếp ở đây
   keys: {}
 
+  # Bảo livekit đọc config từ secret tên là livekit-server-secret
+  # Nó tự tìm key LIVEKIT_KEYS
   storeKeysInSecret:
-  enabled: true
-  # Sử dụng name trong meta data của secret
-  existingSecret: "livekit-server-secret"
-  
-  # Thêm cấu hình cho secret, forget it, ko cần quan tâm
-  secretAnnotations: {}
-  labels: {}
+    enabled: true
+    # Sử dụng name trong meta data của secret
+    existingSecret: "livekit-server-secret"
+    
+    # Thêm cấu hình cho secret, forget it, ko cần quan tâm
+    secretAnnotations: {}
+    labels: {}
   
   # Thêm các cấu hình monitoring
   prometheus:
