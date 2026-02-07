@@ -31,8 +31,8 @@ network:
     ens33:
       dhcp4: no
       addresses:
-        - 192.168.0.50/24
-      gateway4: 192.168.0.1
+        - 192.168.1.50/24
+      gateway4: 192.168.1.1
       nameservers:
         addresses:
           - 8.8.8.8
@@ -58,7 +58,7 @@ sudo nano /etc/hosts
 **Ví dụ nội dung:**
 ```txt
 127.0.0.1 localhost
-192.168.0.50 k3s-master
+192.168.1.50 k3s-master
 ```
 
 ### Reboot:
@@ -85,7 +85,7 @@ sudo apt install nmap -y
 ⚠️ **Lưu ý:** Nhớ sửa subnet + port SSH cho đúng môi trường. Sau này thêm server thì nhớ chạy lại cái này là oke.
 
 ```bash
-SUBNET=192.168.0.0/24
+SUBNET=192.168.1.0/24
 PORT=8022
 USER="thang2k6adu"
 START_IP=51
@@ -115,11 +115,11 @@ cat ~/k3s-inventory/hosts.ini
 **Kết quả mong đợi:**
 ```ini
 [master]
-192.168.0.50 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.0.50
+192.168.1.50 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.1.50
 
 [workers]
-192.168.0.108 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.0.51
-192.168.0.109 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.0.52
+192.168.1.108 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.1.51
+192.168.1.109 ansible_user=thang2k6adu ansible_port=8022 worker_ip=192.168.1.52
 ```
 
 ---
@@ -165,12 +165,12 @@ sudo apt install ansible -y
 Lấy ssh private key đã bỏ vào các node (lúc setup) rồi bỏ lên master. Ở đây chỉ có hướng dẫn Windows:
 
 ```powershell
-scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519 thang2k6adu@192.168.0.50:/home/thang2k6adu/.ssh/id_ed25519
+scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519 thang2k6adu@192.168.1.50:/home/thang2k6adu/.ssh/id_ed25519
 ```
 
 Lấy public key bỏ vào:
 ```powershell
-scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519.pub thang2k6adu@192.168.0.50:/home/thang2k6adu/.ssh/id_ed25519.pub
+scp -P 8022 $env:USERPROFILE\.ssh\id_ed25519.pub thang2k6adu@192.168.1.50:/home/thang2k6adu/.ssh/id_ed25519.pub
 ```
 
 ### Phân quyền:
@@ -325,7 +325,7 @@ ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/set-static-ip.yml
 ## BƯỚC 10: GEN LẠI HOST
 
 ```bash
-SUBNET=192.168.0.0/24
+SUBNET=192.168.1.0/24
 PORT=8022
 USER="thang2k6adu"
 START_IP=51
@@ -462,8 +462,8 @@ nano ~/k3s-inventory/install-k3s-worker.yml
 - hosts: workers
   become: yes
   vars:
-    k3s_url: "https://192.168.0.50:6443"
-    k3s_token: "K10d352882604ec2cf5bab8a4f300209999536bd2ba3609d795d1af4252848ed1e7::server:53772b9d1aadb3a9be59bdf2c4d31c94"
+    k3s_url: "https://192.168.1.50:6443"
+    k3s_token: "K103a63f36c258a910a19e7906fbaa045ed8d4845e209c2a42fc844ddb5c352029f::server:735b4ca9067535fc75622d3c76ca902c"
 
   tasks:
     - name: Install k3s agent
@@ -534,9 +534,9 @@ kubectl get nodes -o wide
 **Output:**
 ```
 NAME         STATUS   ROLES           IP
-k3s-master   Ready    control-plane   192.168.0.50
-worker1      Ready    <none>          192.168.0.505
-worker2      Ready    <none>          192.168.0.506
+k3s-master   Ready    control-plane   192.168.1.50
+worker1      Ready    <none>          192.168.1.505
+worker2      Ready    <none>          192.168.1.506
 ```
 
 ---
@@ -555,8 +555,8 @@ kubectl get nodes
 **Output:**
 ```
 NAME            STATUS   ROLES    AGE
-192.168.0.505   Ready    worker   1d
-192.168.0.506   Ready    worker   1d
+192.168.1.505   Ready    worker   1d
+192.168.1.506   Ready    worker   1d
 ```
 
 ---

@@ -247,7 +247,7 @@ nano ~/k3s-inventory/hosts.ini
 
 ```ini
 [vps]
-13.212.50.46 ansible_user=ubuntu vpn_ip=10.10.10.1 wg_public_key=4E4vCYqO80GHYo/D0yHfXDPI7239w6p+Qz4FnQySoRM=
+13.212.50.46 ansible_user=ubuntu vpn_ip=10.10.20.1 wg_public_key=4E4vCYqO80GHYo/D0yHfXDPI7239w6p+Qz4FnQySoRM=
 ```
 
 ---
@@ -370,17 +370,21 @@ cat ~/k3s-inventory/wg0.vps.conf
 
 ```ini
 [Interface]
-Address = 10.10.10.1/24
+Address = 10.10.10.1/24, 10.10.20.1/24
 ListenPort = 51820
 PrivateKey = PASTE_PRIVATE_KEY_VPS_HERE
 
 [Peer]
-PublicKey = 7GPiM+Ju79MBDVJJvL5uGHAJM71VTtZsGq2pQZlC4iQ=
-AllowedIPs = 10.10.10.11/32
+PublicKey = 2hMqEzFG3zxu3Fomz/JjxXz3a+Hl5Cytp33Hk/44IXk=
+AllowedIPs = 10.10.20.11/32
 
 [Peer]
-PublicKey = r3Gh8n6lmfWbSWykd766yQ27tKEt2PuWIMhxaDK7km4=
-AllowedIPs = 10.10.10.12/32
+PublicKey = 7t1tUuZVNs0ZIkQFCYIrj/fNG+7jrE7AathPVIZQSA4=
+AllowedIPs = 10.10.20.12/32
+
+[Peer]
+PublicKey = 9q5GuZI2bQ00AZdB/3dAHTp4VSCC8Feg6vjxgKqCjmk=
+AllowedIPs = 10.10.20.13/32
 ```
 
 ---
