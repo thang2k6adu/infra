@@ -1,5 +1,16 @@
 vào backend sửa lại (VPS)
 
+thêm biến
+
+sudo nano /etc/nginx/nginx.conf
+
+Trong block http { ... } thêm:
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
 Lấy ip vpn (trên server)
 ansible-inventory -i ~/k3s-inventory/hosts.ini --list \
 | jq -r '
