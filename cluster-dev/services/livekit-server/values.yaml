@@ -27,7 +27,7 @@ livekit:
   key_file: "keys.yaml"
   rtc:
     tcp_port: 7881
-    use_external_ip: true
+    use_external_ip: false
     node_ip: "13.212.50.46" 
     port_range_start: 50000
     port_range_end: 60000
