@@ -1,4 +1,4 @@
-# IPVS + Keepalived Configuration Guide for LiveKit
+# IPVS + Keepalived Configuration Guide for LiveKit (fwmark Approach)
 
 ## Architecture Explanation
 
@@ -13,7 +13,23 @@ LiveKit requires 2 types of connections:
 2. **UDP (Media/RTP) - Port 50000-60000:**
    - Actual audio, video transmission
    - **Nginx CANNOT reverse proxy UDP**
-   - Need alternative solution → **IPVS**
+   - Need alternative solution → **IPVS with fwmark**
+
+---
+
+### Why fwmark Instead of Port-by-Port?
+
+**Old approach (10,001 virtual_server):**
+```
+3 backends × 10,001 ports = 30,003 health checks every 5 seconds
+```
+
+**New approach (1 fwmark virtual_server):**
+```
+3 backends × 1 fwmark = 3 health checks every 5 seconds
+```
+
+**Performance improvement: 99.99% reduction in health checks**
 
 ---
 
@@ -22,12 +38,13 @@ LiveKit requires 2 types of connections:
 | Component | Role | Protocol |
 |-----------|------|----------|
 | **Nginx** | Reverse proxy signaling | TCP 7880/7881 |
-| **IPVS** | Load balance media traffic (MAIN TOOL) | UDP 50000-60000 |
-| **Keepalived** | Health check + Manage IPVS (AUXILIARY TOOL) | TCP 7880 (check) |
+| **iptables** | Mark UDP port range with fwmark | UDP 50000-60000 |
+| **IPVS** | Load balance marked traffic | fwmark 1 |
+| **Keepalived** | Health check + Manage IPVS | TCP 7880 (check) |
 
 **What Keepalived does:**
-- Automatically create IPVS rules (no manual script needed)
-- Health check TCP port 7880 every 5 seconds
+- Automatically create IPVS rules using fwmark
+- Health check TCP port 7880 every 5 seconds (only once per backend)
 - Automatically remove dead pods from IPVS table
 - Automatically add pods back when they come alive
 
@@ -58,40 +75,33 @@ Client
   |
   | UDP 50000-60000 (media/RTP)
   v
-VPS (IPVS - Load Balancer)
+VPS (iptables → mark fwmark 1)
+  |
+  v
+IPVS (Load Balancer using fwmark 1)
   |    ↑
-  |    └─ Keepalived (Health Check TCP 7880)
+  |    └─ Keepalived (Health Check TCP 7880 - ONLY 3 checks)
   |
   ├─> LiveKit Pod 1 (10.10.20.11:50000-60000)
   ├─> LiveKit Pod 2 (10.10.20.12:50000-60000)
-  └─> LiveKit Pod 3 (10.10.20.13:50000-60000) (chết, bị loại)
+  └─> LiveKit Pod 3 (10.10.20.13:50000-60000)
 ```
 
 ---
 
-### SDP Response Example
+### How fwmark Works
 
-Client sends signal TCP → port 7880
-
-LiveKit returns SDP:
 ```
-v=0
-o=- 46117326 2 IN IP4 127.0.0.1
-s=-
-t=0 0
-a=ice-ufrag:abcd
-a=ice-pwd:1234567890abcdef
-a=fingerprint:sha-256 12:34:56:78:...
-m=audio 50034 UDP/TLS/RTP/SAVPF 111
-a=candidate:1 1 UDP 2130706431 203.0.113.10 50034 typ host
-a=candidate:2 1 UDP 1694498815 203.0.113.10 52311 typ srflx
-m=video 50036 UDP/TLS/RTP/SAVPF 96
-a=candidate:3 1 UDP 2130706431 203.0.113.10 50036 typ host
+1. Client sends UDP packet to 13.212.50.46:50034
+                ↓
+2. iptables marks packet: fwmark = 1
+                ↓
+3. IPVS sees fwmark 1 → applies load balancing
+                ↓
+4. Packet forwarded to: 10.10.20.11:50034 (or 12, or 13)
 ```
 
-**Meaning:** Client needs to connect UDP to port **50034** (audio) and **50036** (video)
-
-IPVS will forward these ports to backend pods.
+**Key advantage:** All 10,001 ports (50000-60000) share the same IPVS rule.
 
 ---
 
@@ -100,7 +110,7 @@ IPVS will forward these ports to backend pods.
 ### Step 1: Install packages
 ```bash
 sudo apt update
-sudo apt install -y ipvsadm keepalived iproute2
+sudo apt install -y ipvsadm keepalived iptables-persistent iproute2
 ```
 
 ---
@@ -143,9 +153,78 @@ sudo sysctl -p
 
 ---
 
-## Part 2: Backend Nodes Configuration
+## Part 2: iptables Configuration (fwmark Setup)
 
-### Step 4: Create backend list file
+### Step 4: Create iptables rules for fwmark
+
+**Create script to setup fwmark rules:**
+```bash
+sudo nano /usr/local/bin/setup-fwmark.sh
+```
+
+**Script content:**
+```bash
+#!/bin/bash
+
+PUBLIC_IP="172.31.36.102"  # Change to your VPS public IP
+START_PORT=50000
+END_PORT=60000
+FWMARK=1
+
+echo "Setting up fwmark rules for UDP port range $START_PORT-$END_PORT..."
+
+# Clear existing mangle rules for this fwmark
+iptables -t mangle -D PREROUTING -d $PUBLIC_IP -p udp --dport $START_PORT:$END_PORT -j MARK --set-mark $FWMARK 2>/dev/null
+
+# Add new rule
+iptables -t mangle -A PREROUTING -d $PUBLIC_IP -p udp --dport $START_PORT:$END_PORT -j MARK --set-mark $FWMARK
+
+echo "✓ fwmark rule created"
+echo ""
+echo "Verify with: sudo iptables -t mangle -L PREROUTING -n -v"
+```
+
+**Grant execution permission:**
+```bash
+sudo chmod +x /usr/local/bin/setup-fwmark.sh
+```
+
+**Run the script:**
+```bash
+sudo /usr/local/bin/setup-fwmark.sh
+```
+
+---
+
+### Step 5: Save iptables rules permanently
+
+**Save current rules:**
+```bash
+sudo netfilter-persistent save
+```
+
+**Or manually:**
+```bash
+sudo iptables-save > /etc/iptables/rules.v4
+```
+
+**Verify fwmark rule:**
+```bash
+sudo iptables -t mangle -L PREROUTING -n -v
+```
+
+**Expected output:**
+```
+Chain PREROUTING (policy ACCEPT)
+target     prot opt in     out     source      destination
+MARK       udp  --  *      *       0.0.0.0/0   172.31.36.102   udp dpts:50000:60000 MARK set 0x1
+```
+
+---
+
+## Part 3: Backend Nodes Configuration
+
+### Step 6: Create backend list file
 
 This file contains the list of LiveKit pods IP addresses:
 ```bash
@@ -167,91 +246,86 @@ server 10.10.20.13:7880;
 
 ---
 
-## Part 3: Keepalived Configuration (Automatic IPVS Management)
+## Part 4: Keepalived Configuration (fwmark Approach)
 
-### Step 5: Create script to generate Keepalived config file (remember to adjust for your environment)
+### Step 7: Create script to generate Keepalived config with fwmark
 ```bash
-sudo nano /usr/local/bin/gen-keepalived.sh
+sudo nano /usr/local/bin/gen-keepalived-fwmark.sh
 ```
 
 **Script content:**
 ```bash
 #!/bin/bash
 
-PUBLIC_IP="172.31.36.102"  
-START_PORT=50000                 
-END_PORT=60000                    
+FWMARK=1
 BACKEND_FILE="/etc/nginx/backends/cluster-dev-livekit.conf"
 OUTPUT="/etc/keepalived/keepalived.conf"
 
+# Extract backend IPs from config file
 BACKENDS=$(awk '{print $2}' $BACKEND_FILE | sed 's/;//g' | cut -d: -f1)
 
 if [ -z "$BACKENDS" ]; then
-    echo "No backends found in $BACKEND_FILE"
+    echo "❌ No backends found in $BACKEND_FILE"
     exit 1
 fi
 
-echo "Found Backends:"
+echo "✓ Found backends:"
 echo "$BACKENDS"
 echo ""
 
+# Generate Keepalived config
 cat > $OUTPUT <<EOF
 global_defs {
    router_id LIVEKIT_LVS
 }
-EOF
-
-echo "Creating IPVS rules for port range $START_PORT-$END_PORT..."
-
-for p in $(seq $START_PORT $END_PORT); do
-cat >> $OUTPUT <<EOF
 
 # ──────────────────────────────────────────────────────
-# Virtual Server: $PUBLIC_IP:$p
+# Virtual Server using fwmark (covers port 50000-60000)
 # ──────────────────────────────────────────────────────
-virtual_server $PUBLIC_IP $p {
+virtual_server fwmark $FWMARK {
     delay_loop 5        # Health check every 5 seconds
-    lb_algo rr          # Source Hashing (maintain session)
+    lb_algo rr          # Round Robin
     lb_kind NAT         # NAT mode
     protocol UDP        # UDP traffic
 
 EOF
 
-    # Add real servers with health check
-    for ip in $BACKENDS; do
+# Add real servers with health check
+for ip in $BACKENDS; do
 cat >> $OUTPUT <<EOF
-    real_server $ip $p {
+    real_server $ip 0 {
         weight 1
         TCP_CHECK {
             connect_port 7880           # Health check TCP 7880
             connect_timeout 3           # Timeout 3 seconds
-            retry  3                    # Retry 3 times
+            retry 3                     # Retry 3 times
             delay_before_retry 3        # Wait 3 seconds between retries
         }
     }
 EOF
-    done
-
-    echo "}" >> $OUTPUT
 done
 
+# Close virtual_server block
+echo "}" >> $OUTPUT
+
 echo ""
-echo "Keepalived config has been created at: $OUTPUT"
-echo "Total virtual servers: $((END_PORT - START_PORT + 1))"
-echo "Backend servers count: $(echo "$BACKENDS" | wc -l)"
+echo "✓ Keepalived config created at: $OUTPUT"
+echo "✓ Using fwmark: $FWMARK"
+echo "✓ Backend servers: $(echo "$BACKENDS" | wc -l)"
+echo "✓ Health checks per cycle: $(echo "$BACKENDS" | wc -l) (instead of $(($(echo "$BACKENDS" | wc -l) * 10001)))"
 ```
 
 **Grant execution permission:**
 ```bash
-sudo chmod +x /usr/local/bin/gen-keepalived.sh
+sudo chmod +x /usr/local/bin/gen-keepalived-fwmark.sh
 ```
 
 ---
 
-### Step 6: Run script and start Keepalived
+### Step 8: Generate config and start Keepalived
 ```bash
-# 1. Create Keepalived config file
-sudo /usr/local/bin/gen-keepalived.sh
+# 1. Generate Keepalived config
+sudo /usr/local/bin/gen-keepalived-fwmark.sh
 
 # 2. Check syntax
 sudo keepalived -t -f /etc/keepalived/keepalived.conf
@@ -259,26 +333,18 @@ sudo keepalived -t -f /etc/keepalived/keepalived.conf
 # 3. Enable service
 sudo systemctl enable keepalived
 
-# 4. Start Keepalived (will automatically create IPVS rules)
-sudo systemctl stop keepalived
-
-sudo systemctl start keepalived
+# 4. Start Keepalived
+sudo systemctl restart keepalived
 
 # 5. Check status
 sudo systemctl status keepalived
 ```
 
-**Important note:**
-- Keepalived will **AUTOMATICALLY** create IPVS rules when started
-- Keepalived will **AUTOMATICALLY** health check TCP 7880
-- Keepalived will **AUTOMATICALLY** remove/add backend when dead/alive
-- **NO NEED** to run `ipvs-forward` script manually anymore
-
 ---
 
-## Part 4: Checking & Troubleshooting
+## Part 5: Checking & Troubleshooting
 
-### Check IPVS rules (created by Keepalived)
+### Check IPVS rules (using fwmark)
 ```bash
 # View all rules
 sudo ipvsadm -Ln
@@ -290,17 +356,18 @@ sudo ipvsadm -Ln --stats
 sudo ipvsadm -Ln --rate
 ```
 
-**Sample output:**
+**Expected output with fwmark:**
 ```
 IP Virtual Server version 1.2.1 (size=4096)
 Prot LocalAddress:Port Scheduler Flags
   -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
-UDP  13.212.50.46:50000 sh
-  -> 10.10.20.11:50000            Masq    1      0          0
-  -> 10.10.20.12:50000            Masq    1      0          0
-  -> 10.10.20.13:50000            Masq    1      0          0
-...
+FWM  1 rr
+  -> 10.10.20.11:0                Masq    1      0          0
+  -> 10.10.20.12:0                Masq    1      0          0
+  -> 10.10.20.13:0                Masq    1      0          0
 ```
+
+**Key difference:** Only **ONE** entry (FWM 1) instead of 10,001 entries!
 
 ---
 
@@ -316,46 +383,51 @@ sudo journalctl -u keepalived -n 50
 **Sample log when pod dies:**
 ```
 Keepalived_healthcheckers: TCP connection to [10.10.20.13]:7880 failed !!!
-Keepalived_healthcheckers: Removing service [10.10.20.13]:50000 from VS [13.212.50.46]:50000
+Keepalived_healthcheckers: Removing service [10.10.20.13]:0 from VS FWM:1
 ```
 
 **Sample log when pod comes alive:**
 ```
 Keepalived_healthcheckers: TCP connection to [10.10.20.13]:7880 success.
-Keepalived_healthcheckers: Adding service [10.10.20.13]:50000 to VS [13.212.50.46]:50000
+Keepalived_healthcheckers: Adding service [10.10.20.13]:0 to VS FWM:1
 ```
 
 ---
 
 ### Test connections
 
-**Test TCP signaling:**
+**Test iptables marking:**
 ```bash
-telnet 13.212.50.46 7880
+# Send test UDP packet
+echo "TEST" | nc -u 172.31.36.102 50034
+
+# Check if packet was marked
+sudo conntrack -L | grep 50034
 ```
 
-**Test UDP port:**
+**Test TCP signaling:**
 ```bash
-# Install netcat if not available
-sudo apt install netcat
+telnet 172.31.36.102 7880
+```
 
-# Test UDP
-nc -u -v 13.212.50.46 50034
+**Test UDP forwarding:**
+```bash
+# From another node, send UDP packet
+echo "TEST_UDP_PACKET" | nc -u 172.31.36.102 57186 -p 50001 -vv
+
+# On backend node, capture packets
+sudo tcpdump -i any port 57186 -n -vv
 ```
 
 ---
 
-## Part 5: Health Check Principles
+## Part 6: Health Check Principles
 
-### Why use TCP port 7880 instead of UDP for health check?
+### Why use TCP port 7880 instead of UDP?
 
-**According to Keepalived documentation:**
-
-> "UDP services cannot be checked directly; only TCP or external scripts can be used for health checking."
-
-**Explanation:**
+**UDP cannot be checked directly:**
 - UDP is a **connectionless protocol**, no handshake
-- Sending UDP packet doesn't know if server received it
+- Sending UDP packet doesn't confirm if server received it
 - No response confirmation
 
 **Solution:**
@@ -370,7 +442,7 @@ nc -u -v 13.212.50.46 50034
 TCP_CHECK {
     connect_port 7880           # LiveKit signaling port
     connect_timeout 3           # Timeout 3 seconds
-    retry 3              # Retry 3 times
+    retry 3                     # Retry 3 times
     delay_before_retry 3        # Wait 3 seconds between retries
 }
 ```
@@ -382,17 +454,17 @@ Every 5 seconds (delay_loop 5):
     ↓
   SUCCESS → Pod is alive
     → Keep in IPVS table
-    → Receive UDP traffic normally
+    → Continue receiving UDP traffic via fwmark
     ↓
   FAIL (retry 3 times)
     → Pod is dead
-    → REMOVE from IPVS table
-    → NO MORE UDP traffic
+    → REMOVE from IPVS table (FWM 1)
+    → NO MORE UDP traffic to this pod
 ```
 
 ---
 
-## Part 6: Management & Maintenance
+## Part 7: Management & Maintenance
 
 ### Add/Remove backend node
 
@@ -411,7 +483,7 @@ server 10.10.20.14:7880;  # ← Add new node
 
 **Step 2: Regenerate Keepalived config**
 ```bash
-sudo /usr/local/bin/gen-keepalived.sh
+sudo /usr/local/bin/gen-keepalived-fwmark.sh
 ```
 
 **Step 3: Reload Keepalived**
@@ -422,6 +494,34 @@ sudo systemctl reload keepalived
 **Step 4: Check**
 ```bash
 sudo ipvsadm -Ln | grep 10.10.20.14
+```
+
+---
+
+### Change port range
+
+**If you need to adjust the port range (e.g., 40000-60000):**
+
+**Step 1: Update fwmark script**
+```bash
+sudo nano /usr/local/bin/setup-fwmark.sh
+```
+
+Change:
+```bash
+START_PORT=40000  # ← Change here
+END_PORT=60000
+```
+
+**Step 2: Re-run fwmark setup**
+```bash
+sudo /usr/local/bin/setup-fwmark.sh
+sudo netfilter-persistent save
+```
+
+**Step 3: Restart Keepalived**
+```bash
+sudo systemctl restart keepalived
 ```
 
 ---
@@ -437,15 +537,8 @@ Keepalived will automatically remove all IPVS rules when stopped.
 
 **Method 2: Manual removal**
 ```bash
-# WARNING: Removes entire IPVS table
-sudo ipvsadm -C
-```
-
-**Method 3: Safe removal by port range**
-```bash
-for p in $(seq 50000 60000); do
-  sudo ipvsadm -D -u 13.212.50.46:$p 2>/dev/null
-done
+# Remove fwmark rule
+sudo ipvsadm -D -f 1
 ```
 
 ---
@@ -467,27 +560,35 @@ sudo ipvsadm-restore < ~/ipvs-backup-20241208.conf
 sudo cp /etc/keepalived/keepalived.conf ~/keepalived-backup-$(date +%Y%m%d).conf
 ```
 
+**Backup iptables rules:**
+```bash
+sudo iptables-save > ~/iptables-backup-$(date +%Y%m%d).rules
+```
+
 ---
 
-## Part 7: Production Optimization
+## Part 8: Production Optimization
 
 ### Increase connection tracking limit
 ```bash
 # View current limit
 sudo sysctl net.netfilter.nf_conntrack_max
 
-# Increase (example: 262144)
-sudo sysctl -w net.netfilter.nf_conntrack_max=262144
-echo "net.netfilter.nf_conntrack_max=262144" | sudo tee -a /etc/sysctl.conf
+# Increase (example: 524288 for high traffic)
+sudo sysctl -w net.netfilter.nf_conntrack_max=524288
+echo "net.netfilter.nf_conntrack_max=524288" | sudo tee -a /etc/sysctl.conf
 ```
 
 ---
 
 ### Increase timeout for UDP sessions
 ```bash
-# Default: 30 seconds → Increase to 180 seconds
-sudo sysctl -w net.netfilter.nf_conntrack_udp_timeout=180
-echo "net.netfilter.nf_conntrack_udp_timeout=180" | sudo tee -a /etc/sysctl.conf
+# Default: 30 seconds → Increase to 300 seconds for long calls
+sudo sysctl -w net.netfilter.nf_conntrack_udp_timeout=300
+echo "net.netfilter.nf_conntrack_udp_timeout=300" | sudo tee -a /etc/sysctl.conf
+
+# Apply changes
+sudo sysctl -p
 ```
 
 ---
@@ -519,7 +620,7 @@ Description=Reload Keepalived on backend change
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/gen-keepalived.sh
+ExecStart=/usr/local/bin/gen-keepalived-fwmark.sh
 ExecStartPost=/bin/systemctl reload keepalived
 ```
 
@@ -541,20 +642,45 @@ sudo journalctl -u keepalived-reload.service -f
 
 ---
 
-## Part 8: Debugging & Troubleshooting
+## Part 9: Debugging & Troubleshooting
 
 ### Pod not receiving traffic
 
 **Check:**
 ```bash
-# 1. Is pod in IPVS table?
+# 1. Is fwmark rule active?
+sudo iptables -t mangle -L PREROUTING -n -v | grep 50000
+
+# 2. Is pod in IPVS table?
 sudo ipvsadm -Ln | grep <POD_IP>
 
-# 2. Is pod's TCP 7880 alive?
+# 3. Is pod's TCP 7880 alive?
 telnet <POD_IP> 7880
 
-# 3. Any errors in Keepalived logs?
+# 4. Any errors in Keepalived logs?
 sudo journalctl -u keepalived -n 100 | grep <POD_IP>
+```
+
+---
+
+### fwmark not working
+
+**Check:**
+```bash
+# 1. Is iptables rule present?
+sudo iptables -t mangle -L PREROUTING -n -v
+
+# 2. Test packet marking
+sudo conntrack -L | grep -E "50[0-9]{3}"
+
+# 3. Check IPVS has fwmark rule
+sudo ipvsadm -Ln | grep FWM
+```
+
+**If fwmark rule missing, recreate:**
+```bash
+sudo /usr/local/bin/setup-fwmark.sh
+sudo systemctl restart keepalived
 ```
 
 ---
@@ -566,11 +692,14 @@ sudo journalctl -u keepalived -n 100 | grep <POD_IP>
 # 1. Is Keepalived running?
 sudo systemctl status keepalived
 
-# 2. Any syntax errors in config file?
+# 2. Any syntax errors in config?
 sudo keepalived -t -f /etc/keepalived/keepalived.conf
 
 # 3. Are kernel modules loaded?
 lsmod | grep ip_vs
+
+# 4. Check full logs
+sudo journalctl -u keepalived -n 200
 ```
 
 ---
@@ -586,141 +715,100 @@ sudo sysctl net.ipv4.ip_forward
 sudo sysctl net.netfilter.nf_conntrack_max
 sudo conntrack -L | wc -l
 
-# 3. Is firewall blocking?
-sudo iptables -L -n -v
+# 3. Are packets being marked?
+sudo iptables -t mangle -L PREROUTING -n -v -x
+
+# 4. Test with tcpdump on VPS
+sudo tcpdump -i any port 50034 -n -vv
+
+# 5. Test with tcpdump on backend
+sudo tcpdump -i any port 50034 -n -vv
 ```
 
 ---
 
+## Part 11: Complete Sample Configuration
+
+### Sample Keepalived Config (After generation)
+
+**Location:** `/etc/keepalived/keepalived.conf`
+
+```nginx
 global_defs {
    router_id LIVEKIT_LVS
 }
 
 # ──────────────────────────────────────────────────────
-# Virtual Server: 13.212.50.46:50000
+# Virtual Server using fwmark (covers port 50000-60000)
 # ──────────────────────────────────────────────────────
-virtual_server 13.212.50.46 50000 {
+virtual_server fwmark 1 {
     delay_loop 5        # Health check every 5 seconds
-    lb_algo sh          # Source Hashing (maintain session)
+    lb_algo rr          # Round Robin
     lb_kind NAT         # NAT mode
     protocol UDP        # UDP traffic
 
-    real_server 10.10.20.11 50000 {
+    real_server 10.10.20.11 0 {
         weight 1
         TCP_CHECK {
             connect_port 7880           # Health check TCP 7880
             connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
+            retry 3                     # Retry 3 times
             delay_before_retry 3        # Wait 3 seconds between retries
         }
     }
-    real_server 10.10.20.12 50000 {
+    real_server 10.10.20.12 0 {
         weight 1
         TCP_CHECK {
             connect_port 7880           # Health check TCP 7880
             connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
+            retry 3                     # Retry 3 times
             delay_before_retry 3        # Wait 3 seconds between retries
         }
     }
-    real_server 10.10.20.13 50000 {
+    real_server 10.10.20.13 0 {
         weight 1
         TCP_CHECK {
             connect_port 7880           # Health check TCP 7880
             connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
-        }
-    }
-}
-
-# ──────────────────────────────────────────────────────
-# Virtual Server: 13.212.50.46:50001
-# ──────────────────────────────────────────────────────
-virtual_server 13.212.50.46 50001 {
-    delay_loop 5        # Health check every 5 seconds
-    lb_algo sh          # Source Hashing (maintain session)
-    lb_kind NAT         # NAT mode
-    protocol UDP        # UDP traffic
-
-    real_server 10.10.20.11 50001 {
-        weight 1
-        TCP_CHECK {
-            connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
-        }
-    }
-    real_server 10.10.20.12 50001 {
-        weight 1
-        TCP_CHECK {
-            connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
-        }
-    }
-    real_server 10.10.20.13 50001 {
-        weight 1
-        TCP_CHECK {
-            connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
-        }
-    }
-}
-
-# ... (Continue for port 50002, 50003... to 60000)
-# ... TOTAL: 10,001 virtual servers
-
-# ──────────────────────────────────────────────────────
-# Virtual Server: 13.212.50.46:60000
-# ──────────────────────────────────────────────────────
-virtual_server 13.212.50.46 60000 {
-    delay_loop 5        # Health check every 5 seconds
-    lb_algo sh          # Source Hashing (maintain session)
-    lb_kind NAT         # NAT mode
-    protocol UDP        # UDP traffic
-
-    real_server 10.10.20.11 60000 {
-        weight 1
-        TCP_CHECK {
-            connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
-        }
-    }
-    real_server 10.10.20.12 60000 {
-        weight 1
-        TCP_CHECK {
-            connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
-        }
-    }
-    real_server 10.10.20.13 60000 {
-        weight 1
-        TCP_CHECK {
-            connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3              # Retry 3 times
+            retry 3                     # Retry 3 times
             delay_before_retry 3        # Wait 3 seconds between retries
         }
     }
 }
 ```
 
-test
-trên node private được forward tới
-sudo tcpdump -i any port 57186 -n -vv -X
+---
 
-vào vps
-sudo tcpdump -i any port 57186 -n -vv -X
+### Sample iptables mangle rule
 
-vào node khác
+**Check with:**
+```bash
+sudo iptables -t mangle -L PREROUTING -n -v
+```
 
-echo "TEST_UDP_PACKET" | nc -u 13.212.50.46 57186 -p 50001 -vv
+**Expected output:**
+```
+Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+ pkts bytes target     prot opt in     out     source               destination
+ 1234  567K MARK       udp  --  *      *       0.0.0.0/0            172.31.36.102        udp dpts:50000:60000 MARK set 0x1
+```
+
+---
+
+### Sample IPVS output
+
+**Check with:**
+```bash
+sudo ipvsadm -Ln
+```
+
+**Expected output:**
+```
+IP Virtual Server version 1.2.1 (size=4096)
+Prot LocalAddress:Port Scheduler Flags
+  -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+FWM  1 rr
+  -> 10.10.20.11:0                Masq    1      0          5
+  -> 10.10.20.12:0                Masq    1      0          3
+  -> 10.10.20.13:0                Masq    1      0          2
+```
