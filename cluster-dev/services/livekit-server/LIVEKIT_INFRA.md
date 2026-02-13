@@ -178,7 +178,7 @@ sudo nano /usr/local/bin/gen-keepalived.sh
 ```bash
 #!/bin/bash
 
-PUBLIC_IP="13.212.50.46"  
+PUBLIC_IP="172.31.36.102"  
 START_PORT=50000                 
 END_PORT=60000                    
 BACKEND_FILE="/etc/nginx/backends/cluster-dev-livekit.conf"
@@ -260,6 +260,8 @@ sudo keepalived -t -f /etc/keepalived/keepalived.conf
 sudo systemctl enable keepalived
 
 # 4. Start Keepalived (will automatically create IPVS rules)
+sudo systemctl stop keepalived
+
 sudo systemctl start keepalived
 
 # 5. Check status
@@ -711,3 +713,14 @@ virtual_server 13.212.50.46 60000 {
     }
 }
 ```
+
+test
+trên node private được forward tới
+sudo tcpdump -i any port 57186 -n -vv -X
+
+vào vps
+sudo tcpdump -i any port 57186 -n -vv -X
+
+vào node khác
+
+echo "TEST_UDP_PACKET" | nc -u 13.212.50.46 57186 -p 50001 -vv
