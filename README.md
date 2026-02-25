@@ -138,6 +138,20 @@ sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 
 # Creating a New Tenant/Service
 
+## Get sealed secrets cert
+
+```bash
+kubectl get secret -n kube-system $(kubectl get secret -n kube-system | grep sealed-secrets-key | awk '{print $1}') -o jsonpath="{.data.tls\.crt}" | base64 -d > pub-cert.pem
+```
+
+### Check
+
+```bash
+ls -l pub-cert.pem
+
+cat pub-cert.pem
+```
+
 ## Prerequisites
 
 Before creating a new tenant, ensure your cluster has:

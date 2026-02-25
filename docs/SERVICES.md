@@ -12,8 +12,7 @@ kubectl -n kubernetes-dashboard get svc
 ### Kiểm tra RBAC
 
 ```shell
-kubectl get clusterrole dashboard-admin
-kubectl get clusterrolebinding kubernetes-dashboard-admin
+kubectl get clusterrole cluster-admin
 kubectl -n kubernetes-dashboard get sa kubernetes-dashboard-admin
 ```
 
