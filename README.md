@@ -177,13 +177,7 @@ cd pp191225-api
 
 ### Step 2: Create Required Files
 
-Create the following three files in your service directory:
-
-**1. `service.yaml`** (copy from example):
-```bash
-cp ../../../service-example.yaml service.yaml
-# Edit service.yaml with your service details
-```
+create values.yaml
 
 **2. `.env`** (environment variables):
 ```bash
@@ -206,22 +200,7 @@ API_KEY
 EOF
 ```
 
-### Step 3: Configure Service Details
-
-Edit `service.yaml` to match your service:
-
-```yaml
-service:
-  name: "pp191225-api"        # Must match directory name
-  template: "v1"              # Template version to use
-  replicaCount: 2
-  image:
-    repository: "your-registry/pp191225-api"
-    tag: "latest"
-  # Add any other service-specific configurations
-```
-
-### Step 4: Run Deployment Script
+### Step 3: Run Deployment Script
 
 From the repository root, run the deployment script:
 
@@ -230,7 +209,7 @@ From the repository root, run the deployment script:
 ./scripts/create-tenant.sh
 ```
 
-### Step 5: Verify and Commit
+### Step 4: Verify and Commit
 
 
 creat a seal secret

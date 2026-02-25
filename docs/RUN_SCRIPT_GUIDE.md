@@ -72,7 +72,7 @@ cd <repo-name>
 
 ### **3. Basic Usage**
 ```bash
-./scripts/create-tenants.sh
+./scripts/create-tenant.sh
 
 # Or with parameters
 ./scripts/create-tenant.sh \

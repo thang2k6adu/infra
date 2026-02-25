@@ -247,7 +247,7 @@ nano ~/k3s-inventory/hosts.ini
 
 ```ini
 [vps]
-13.212.50.46 ansible_user=ubuntu vpn_ip=10.10.20.1 wg_public_key=4E4vCYqO80GHYo/D0yHfXDPI7239w6p+Qz4FnQySoRM=
+13.212.50.46 ansible_user=ubuntu vpn_ip=10.10.20.1 wg_public_key=quJwDed3UjK3M4WdKi/+aJUjXOuFpBkAWHpTW47QyXc=
 ```
 
 ---
@@ -353,7 +353,6 @@ nano ~/k3s-inventory/gen-vps-wg.yml
           AllowedIPs = {{ hostvars[host].vpn_ip }}/32
 
           {% endfor %}
-
 ```
 
 **Chạy playbook:**
@@ -633,7 +632,7 @@ ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/open-wireguard-por
 **Test trên node (nào cũng được), nếu fail hãy mở port vps:**
 
 ```bash
-ping 10.10.10.1
+ping 10.10.20.1
 ```
 
 ---

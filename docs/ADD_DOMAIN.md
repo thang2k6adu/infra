@@ -66,7 +66,7 @@ server 10.10.10.12:30080;
 
 ---
 
-## **. Mở file cấu hình chính của Nginx (VPX)
+## **. Mở file cấu hình chính của Nginx (VPS)
 
 ```bash
 sudo nano /etc/nginx/nginx.conf
