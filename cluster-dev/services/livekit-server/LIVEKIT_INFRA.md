@@ -147,8 +147,7 @@ sudo sysctl -w net.ipv4.ip_forward=1
 
 **Save permanently:**
 ```bash
-echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
+sudo sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf && echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 ```
 
 ---
@@ -166,15 +165,20 @@ sudo nano /usr/local/bin/setup-fwmark.sh
 ```bash
 #!/bin/bash
 
-PUBLIC_IP="172.31.36.102"  # Change to your VPS public IP
+PUBLIC_IP="172.31.36.102"
 START_PORT=50000
 END_PORT=60000
 FWMARK=1
+VPN_PORT=51820
 
 echo "Setting up fwmark rules for UDP port range $START_PORT-$END_PORT..."
 
 # Clear existing mangle rules for this fwmark
 iptables -t mangle -D PREROUTING -d $PUBLIC_IP -p udp --dport $START_PORT:$END_PORT -j MARK --set-mark $FWMARK 2>/dev/null
+iptables -t mangle -D PREROUTING -d $PUBLIC_IP -p udp --dport $VPN_PORT -j RETURN 2>/dev/null
+
+# return ISTEAD OF mark
+iptables -t mangle -A PREROUTING -d $PUBLIC_IP -p udp --dport $VPN_PORT -j RETURN
 
 # Add new rule
 iptables -t mangle -A PREROUTING -d $PUBLIC_IP -p udp --dport $START_PORT:$END_PORT -j MARK --set-mark $FWMARK
@@ -208,6 +212,11 @@ sudo netfilter-persistent save
 sudo iptables-save > /etc/iptables/rules.v4
 ```
 
+**Delete certain rule:**
+```bash
+sudo iptables -t mangle -D PREROUTING -d 13.212.50.46 -p udp -m udp --dport 50000:60000 -j MARK --set-mark 1
+```
+
 **Verify fwmark rule:**
 ```bash
 sudo iptables -t mangle -L PREROUTING -n -v
@@ -217,7 +226,7 @@ sudo iptables -t mangle -L PREROUTING -n -v
 ```
 Chain PREROUTING (policy ACCEPT)
 target     prot opt in     out     source      destination
-MARK       udp  --  *      *       0.0.0.0/0   172.31.36.102   udp dpts:50000:60000 MARK set 0x1
+MARK       udp  --  *      *       0.0.0.0/0   13.212.50.46   udp dpts:50000:60000 MARK set 0x1
 ```
 
 ---
@@ -286,8 +295,6 @@ virtual_server fwmark $FWMARK {
     delay_loop 5        # Health check every 5 seconds
     lb_algo rr          # Round Robin
     lb_kind NAT         # NAT mode
-    protocol UDP        # UDP traffic
-
 EOF
 
 # Add real servers with health check
@@ -297,9 +304,9 @@ cat >> $OUTPUT <<EOF
         weight 1
         TCP_CHECK {
             connect_port 7880           # Health check TCP 7880
-            connect_timeout 3           # Timeout 3 seconds
-            retry 3                     # Retry 3 times
-            delay_before_retry 3        # Wait 3 seconds between retries
+            connect_timeout 5
+            retry 5
+            delay_before_retry 3
         }
     }
 EOF
@@ -334,7 +341,10 @@ sudo keepalived -t -f /etc/keepalived/keepalived.conf
 sudo systemctl enable keepalived
 
 # 4. Start Keepalived
+sudo systemctl stop keepalived
+sudo systemctl start keepalived
 sudo systemctl restart keepalived
+
 
 # 5. Check status
 sudo systemctl status keepalived
@@ -399,7 +409,7 @@ Keepalived_healthcheckers: Adding service [10.10.20.13]:0 to VS FWM:1
 **Test iptables marking:**
 ```bash
 # Send test UDP packet
-echo "TEST" | nc -u 172.31.36.102 50034
+echo "TEST" | nc -u 13.212.50.46 50034
 
 # Check if packet was marked
 sudo conntrack -L | grep 50034
@@ -407,13 +417,14 @@ sudo conntrack -L | grep 50034
 
 **Test TCP signaling:**
 ```bash
-telnet 172.31.36.102 7880
+vào trình duyệt 
+https://livekit.thang2k6adu.xyz/
 ```
 
 **Test UDP forwarding:**
 ```bash
 # From another node, send UDP packet
-echo "TEST_UDP_PACKET" | nc -u 172.31.36.102 57186 -p 50001 -vv
+echo "TEST_UDP_PACKET" | nc -u 13.212.50.46 57186 -p 50001 -vv
 
 # On backend node, capture packets
 sudo tcpdump -i any port 57186 -n -vv
@@ -790,7 +801,7 @@ sudo iptables -t mangle -L PREROUTING -n -v
 ```
 Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
  pkts bytes target     prot opt in     out     source               destination
- 1234  567K MARK       udp  --  *      *       0.0.0.0/0            172.31.36.102        udp dpts:50000:60000 MARK set 0x1
+ 1234  567K MARK       udp  --  *      *       0.0.0.0/0            13.212.50.46        udp dpts:50000:60000 MARK set 0x1
 ```
 
 ---
