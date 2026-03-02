@@ -17,7 +17,7 @@ helmCharts:
     valuesFile: values.yaml
 
 patches:
-  - path: patch-deployment.yaml
+  - path: patch-env.yaml
     target:
       kind: Deployment
       name: dev-livekit-server
