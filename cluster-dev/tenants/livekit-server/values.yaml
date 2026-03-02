@@ -1,7 +1,7 @@
 nameOverride: "livekit-server"
 fullnameOverride: ""
 
-replicaCount: 2
+replicaCount: 1
 
 # Tắt cái default của helm chart gốc
 # ko tắt nó sẽ lấy của cái khác (vd pp191225)
@@ -36,10 +36,10 @@ livekit:
       - "stun.l.google.com:19302"
   
   redis:
-    enabled: true
-    address: "alert-urchin-60909.upstash.io:6379"
-    use_tls: true # Upstash Redis chỉ hỗ trợ TLS
-    db: 0
+    enabled: false
+    # address: "alert-urchin-60909.upstash.io:6379"
+    # use_tls: true # Upstash Redis chỉ hỗ trợ TLS
+    # db: 0
   
   # API keys - KHÔNG nên config trực tiếp ở đây
   # keys: {}
@@ -100,9 +100,9 @@ turnLoadbalancer:
   annotations: {}
 
 autoscaling:
-  enabled: true
+  enabled: false
   minReplicas: 2
-  maxReplicas: 2
+  maxReplicas: 5
   targetCPUUtilizationPercentage: 60
   targetMemoryUtilizationPercentage: 80
   behavior: {}
@@ -196,11 +196,11 @@ env:
     value: "true"
   - name: LIVEKIT_DEVELOPMENT
     value: "false"
-  - name: LIVEKIT_REDIS_PASSWORD
-    valueFrom:
-      secretKeyRef:
-        name: livekit-server-secret
-        key: REDIS_PASSWORD
+  # - name: LIVEKIT_REDIS_PASSWORD
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: livekit-server-secret
+  #       key: REDIS_PASSWORD
 
 initContainers: []
 sidecars: []
