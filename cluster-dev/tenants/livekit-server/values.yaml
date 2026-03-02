@@ -1,7 +1,7 @@
 nameOverride: "livekit-server"
 fullnameOverride: ""
 
-replicaCount: 1
+replicaCount: 2
 
 # Tắt cái default của helm chart gốc
 # ko tắt nó sẽ lấy của cái khác (vd pp191225)
@@ -36,10 +36,11 @@ livekit:
       - "stun.l.google.com:19302"
   
   redis:
-    enabled: false
-    # address: "redis-12345.upstash.io:6379"
-    # passwordSecret: livekit-server-secret
-    # passwordSecretKey: REDIS_PASSWORD
+    enabled: true
+    address: "alert-urchin-60909.upstash.io:6379"
+    passwordSecret: livekit-server-secret
+    passwordSecretKey: REDIS_PASSWORD
+    use_tls: true # Upstash Redis chỉ hỗ trợ TLS
     db: 0
   
   # API keys - KHÔNG nên config trực tiếp ở đây
@@ -48,13 +49,11 @@ livekit:
   
   turn:
     enabled: false
-    # Cấu hình bắt buộc nếu enable TURN
-    # domain: "turn.yourdomain.com"
-    # tls_port: 443
-    # udp_port: 443
-    # secret: "your-turn-secret"
-    # external_tls: true
-    # loadBalancerAnnotations: {}
+    domain: "turn.thang2k6adu.xyz"
+    tls_port: 5349
+    udp_port: 3478
+    secret: "your-turn-secret"
+    external_tls: false # Để false vì Nginx/LB thường sẽ đẩy thẳng traffic thô ở các port này vào
 
 # Bảo livekit đọc config từ secret tên là livekit-server-secret
 # Nó tự tìm key LIVEKIT_KEYS
@@ -103,17 +102,17 @@ turnLoadbalancer:
   annotations: {}
 
 autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 5
-  # targetCPUUtilizationPercentage: 60
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 60
   targetMemoryUtilizationPercentage: 80
   behavior: {}
 
 # Pod Disruption Budget cho HA
 # Pod Disruption Budget là một tính năng của Kubernetes cho phép bạn chỉ định số lượng pod có thể bị gián đoạn trong một thời gian nhất định.
 podDisruptionBudget:
-  enabled: false
+  enabled: true
   minAvailable: 1
   # maxUnavailable: 1
 
@@ -164,22 +163,20 @@ tolerations: []
 
 affinity:
   podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - livekit-server
-          topologyKey: kubernetes.io/hostname
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - livekit-server
+        topologyKey: kubernetes.io/hostname
 
 deploymentStrategy:
-  type: RollingUpdate
-  rollingUpdate:
-    maxSurge: 1
-    maxUnavailable: 0
+  type: Recreate
+  # rollingUpdate:
+  #   maxSurge: 1
+  #   maxUnavailable: 0
 
 deploymentAnnotations: {}
 
