@@ -116,7 +116,7 @@ podDisruptionBudget:
 
 # Thêm label cụ thể cho node chạy LiveKit
 nodeSelector:
-  {}
+  kubernetes.io/hostname: "k3s-worker-51"
 
 # LiveKit cần CPU nhiều hơn RAM
 resources:
