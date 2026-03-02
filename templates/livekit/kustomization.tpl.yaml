@@ -13,9 +13,3 @@ helmCharts:
     releaseName: dev
     namespace: {{SERVICE_NAME}}
     valuesFile: values.yaml
-
-patches:
-  - path: patch-env.yaml
-    target:
-      kind: Deployment
-      name: dev-livekit-server
