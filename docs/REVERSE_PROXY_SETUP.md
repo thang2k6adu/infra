@@ -169,7 +169,7 @@ Ví dụ: `HPXXUZHlQpUpJ5ylk5K+ZjqemQajcCbYXnr7mSRv/2k=`
 **Lấy IP master (sửa vpn subnet nếu thêm cluster mới):**
 
 ```bash
-VPN_NET="10.10.20"
+VPN_NET="10.10.10"
 MASTER=$(awk '/^\[master\]/{getline; print $1}' ~/k3s-inventory/hosts.ini)
 ```
 
@@ -247,7 +247,7 @@ nano ~/k3s-inventory/hosts.ini
 
 ```ini
 [vps]
-13.212.50.46 ansible_user=ubuntu vpn_ip=10.10.20.1 wg_public_key=quJwDed3UjK3M4WdKi/+aJUjXOuFpBkAWHpTW47QyXc=
+13.212.50.46 ansible_user=ubuntu vpn_ip=10.10.10.1 wg_public_key=quJwDed3UjK3M4WdKi/+aJUjXOuFpBkAWHpTW47QyXc=
 ```
 
 ---
@@ -269,7 +269,7 @@ nano ~/k3s-inventory/gen-node-wg.yml
   vars:
     vps_ip: "{{ hostvars[groups['vps'][0]].inventory_hostname }}"
     vps_pubkey: "{{ hostvars[groups['vps'][0]].wg_public_key }}"
-    vpn_cidr: "10.10.20.0/24"  # đổi subnet tại đây khi thêm cluster mới
+    vpn_cidr: "10.10.10.0/24"  # đổi subnet tại đây khi thêm cluster mới
   tasks:
     - name: Read private key
       shell: cat /etc/wireguard/privatekey
@@ -632,7 +632,7 @@ ansible-playbook -i ~/k3s-inventory/hosts.ini ~/k3s-inventory/open-wireguard-por
 **Test trên node (nào cũng được), nếu fail hãy mở port vps:**
 
 ```bash
-ping 10.10.20.1
+ping 10.10.10.1
 ```
 
 ---

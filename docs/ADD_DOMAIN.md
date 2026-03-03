@@ -59,9 +59,8 @@ ansible-inventory -i ~/k3s-inventory/hosts.ini --list \
 **Phải ra:**
 
 ```nginx
-server 10.10.10.11:30080;
-server 10.10.10.13:30080;
-server 10.10.10.12:30080;
+server 10.10.10.11:30443;
+server 10.10.10.12:30443;
 ```
 
 ---
@@ -91,7 +90,7 @@ include /etc/nginx/sites-enabled/*;
 
 ```bash
 sudo mkdir -p /etc/nginx/backends
-sudo nano /etc/nginx/backends/cluster-dev.conf #sửa thành cluster chuẩn nhé
+sudo nano /etc/nginx/backends/cluster-prod.conf #sửa thành cluster chuẩn nhé
 ```
 
 **Nội dung `/etc/nginx/backends/cluster-prod.conf`:**
@@ -99,7 +98,6 @@ sudo nano /etc/nginx/backends/cluster-dev.conf #sửa thành cluster chuẩn nh�
 ```nginx
 server 10.10.10.11:30443;
 server 10.10.10.12:30443;
-server 10.10.10.13:30443;
 ```
 
 ---
@@ -325,7 +323,7 @@ echo "Domain $DOMAIN added to $UPSTREAM"
 ### Thêm domain
 
 ```bash
-sudo add-domain argocd.thang2k6adu.xyz cluster-dev
+sudo add-domain pp191225api.kruzetech.dev cluster-prod
 ```
 
 **Lưu ý:** thêm domain thì phải thêm www. nữa nhé
