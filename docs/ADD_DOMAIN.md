@@ -323,7 +323,7 @@ echo "Domain $DOMAIN added to $UPSTREAM"
 ### Thêm domain
 
 ```bash
-sudo add-domain pp191225api.kruzetech.dev cluster-prod
+sudo add-domain livekit.kruzetech.dev cluster-prod
 ```
 
 **Lưu ý:** thêm domain thì phải thêm www. nữa nhé
@@ -342,7 +342,7 @@ nginx -t && systemctl reload nginx
 ### Remove domain
 
 ```bash
-DOMAIN=argocd.thang2k6adu.xyz
+DOMAIN=livekit.kruzetech.dev
 
 sudo rm -f /etc/nginx/sites-enabled/$DOMAIN
 sudo rm -f /etc/nginx/sites-available/$DOMAIN
