@@ -64,7 +64,7 @@ Install the Argo CD first to apply. Don't worry, after that all resources will b
 
 ```shell
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply  --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
 ### Step 2: Apply the Repository
@@ -72,7 +72,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 Then, just apply this repo:
 
 ```shell
-kubectl apply -k https://github.com/thang2k6adu/kubernetes-infra/cluster-prod/bootstrap/overlays/default
+kubectl apply --server-side --force-conflicts -k https://github.com/thang2k6adu/kubernetes-infra/cluster-prod/bootstrap/overlays/default
 ```
 
 ### Step 3: Verify Applications
