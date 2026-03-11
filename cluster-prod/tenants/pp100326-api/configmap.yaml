@@ -6,7 +6,7 @@ data:
   AWS_REGION: us-east-1
   AWS_S3_BUCKET: ""
   CLOUDINARY_CLOUD_NAME: ""
-  CORS_ORIGIN: http://localhost:3000,https://yourdomain.com
+  CORS_ORIGIN: http://localhost:3000,https://pp100326-fe.vercel.app
   ELASTICSEARCH_NODE: http://localhost:9200
   FIREBASE_CLIENT_EMAIL: firebase-adminsdk-fbsvc@stakeholder-hub.iam.gserviceaccount.com
   FIREBASE_PROJECT_ID: stakeholder-hub
