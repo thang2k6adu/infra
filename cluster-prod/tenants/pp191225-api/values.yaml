@@ -109,9 +109,9 @@ autoscaling:
 
 envFrom:
   - configMapRef:
-      name: pp191225-config
+      name: pp191225-api-config
   - secretRef:
-      name: pp191225-secret
+      name: pp191225-api-secret
 
 configMap:
   enabled: false
