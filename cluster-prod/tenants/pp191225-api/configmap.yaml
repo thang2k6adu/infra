@@ -11,13 +11,13 @@ data:
   FIREBASE_CLIENT_EMAIL: firebase-adminsdk-fbsvc@pp191225-40959.iam.gserviceaccount.com
   FIREBASE_PROJECT_ID: pp191225-40959
   FRONTEND_RESET_URL: https://pp-191225-web.vercel.app/reset-password
-  FRONTEND_URL: https://pp-191225-web.vercel.app/
+  FRONTEND_URL: https://pp-191225-web.vercel.app
   JWT_EXPIRES_IN: 2h
   JWT_REFRESH_EXPIRES_IN: 7d
   LIVEKIT_API_KEY: devkey
-  LIVEKIT_URL: wss://livekit.kruzetech.dev/
+  LIVEKIT_URL: wss://livekit.kruzetech.dev
   MAIL_FROM: ttran06@kruzetech.dev
-  NODE_ENV: development
+  NODE_ENV: production
   PORT: "3000"
   REDIS_HOST: busy-beagle-85601.upstash.io
   REDIS_PORT: "6379"
