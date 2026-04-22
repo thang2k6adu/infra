@@ -7,7 +7,10 @@ data:
   JPA_SHOW_SQL: "true"
   JWT_ISSUER_URI: http://prod-ecommerce-keycloak.ecommerce-keycloak.svc.cluster.local/realms/ecommerce
   JWT_JWK_SET_URI: http://prod-ecommerce-keycloak.ecommerce-keycloak.svc.cluster.local/realms/ecommerce/protocol/openid-connect/certs
-  KAFKA_BOOTSTRAP_SERVERS: kafka-3a12d0c9-thang2k6adu-d680.i.aivencloud.com:19370
+  KAFKA_BOOTSTRAP_SERVERS: kafka-3a12d0c9-thang2k6adu-d680.i.aivencloud.com:19381
+  KAFKA_SASL_MECHANISM: SCRAM-SHA-512
+  KAFKA_SASL_USERNAME: avnadmin
+  KAFKA_SECURITY_PROTOCOL: 'SASL_SSL # Change to SASL_SSL if using authentication'
   KEYCLOAK_ADMIN_USERNAME: user
   KEYCLOAK_CLIENT_ID: ecommerce-backend
   KEYCLOAK_DB_NAME: bitnami_keycloak
@@ -20,6 +23,7 @@ data:
   SECURITY_KEYCLOAK_CLIENT_ID: ecommerce-backend
   SERVER_CONTEXT_PATH: /
   SERVER_PORT: "8081"
+  SPRING_PROFILES_ACTIVE: kafka-sasl
   USER_DB_NAME: prisma_migrate_shadow_db_b248853b-875e-4047-8d44-e4c2ec44fef7
   USER_DB_PORT: "5432"
   USER_DB_USERNAME: neondb_owner
