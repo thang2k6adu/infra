@@ -11,7 +11,7 @@ resources:
 helmCharts:
   - name: keycloak
     repo: https://charts.bitnami.com/bitnami
-    version: 24.3.2
+    version: 26.3.2
     releaseName: prod
     namespace: ecommerce-keycloak
     valuesFile: values.yaml
