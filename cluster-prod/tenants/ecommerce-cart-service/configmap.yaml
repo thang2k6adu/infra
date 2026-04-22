@@ -7,7 +7,7 @@ data:
   KAFKA_BOOTSTRAP_SERVERS: kafka-3a12d0c9-thang2k6adu-d680.i.aivencloud.com:19381
   KAFKA_SASL_MECHANISM: SCRAM-SHA-512
   KAFKA_SASL_USERNAME: avnadmin
-  KAFKA_SECURITY_PROTOCOL: 'SASL_SSL # Change to SASL_SSL if using authentication'
+  KAFKA_SECURITY_PROTOCOL: SASL_SSL
   PRODUCT_SERVICE_URL: http://prod-ecommerce-product-service.ecommerce-product-service.svc.cluster.local:8082
   SERVER_PORT: "8083"
   SPRING_PROFILES_ACTIVE: kafka-sasl

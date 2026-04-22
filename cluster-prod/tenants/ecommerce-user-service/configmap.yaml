@@ -10,7 +10,7 @@ data:
   KAFKA_BOOTSTRAP_SERVERS: kafka-3a12d0c9-thang2k6adu-d680.i.aivencloud.com:19381
   KAFKA_SASL_MECHANISM: SCRAM-SHA-512
   KAFKA_SASL_USERNAME: avnadmin
-  KAFKA_SECURITY_PROTOCOL: 'SASL_SSL # Change to SASL_SSL if using authentication'
+  KAFKA_SECURITY_PROTOCOL: SASL_SSL
   KEYCLOAK_ADMIN_USERNAME: user
   KEYCLOAK_CLIENT_ID: ecommerce-backend
   KEYCLOAK_DB_NAME: bitnami_keycloak
