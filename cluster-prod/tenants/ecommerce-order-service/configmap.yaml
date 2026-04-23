@@ -5,12 +5,13 @@ data:
   DB_NAME: neondb
   DB_PORT: "5432"
   DB_USER: neondb_owner
-  JWT_ISSUER_URI: http://prod-ecommerce-keycloak.ecommerce-keycloak.svc.cluster.local/realms/ecommerce
-  JWT_JWK_SET_URI: http://prod-ecommerce-keycloak.ecommerce-keycloak.svc.cluster.local/realms/ecommerce/protocol/openid-connect/certs
+  JWT_ISSUER_URI: https://keycloak.kruzetech.dev/realms/ecommerce
+  JWT_JWK_SET_URI: https://keycloak.kruzetech.dev/realms/ecommerce/protocol/openid-connect/certs
   KAFKA_BOOTSTRAP_SERVERS: kafka-3a12d0c9-thang2k6adu-d680.i.aivencloud.com:19381
   KAFKA_SASL_MECHANISM: SCRAM-SHA-512
   KAFKA_SASL_USERNAME: avnadmin
   KAFKA_SECURITY_PROTOCOL: SASL_SSL
+  KAFKA_SSL_CA_CERT_PATH: ./ca.pem
   PRODUCT_SERVICE_URL: http://prod-ecommerce-product-service.ecommerce-product-service.svc.cluster.local:8082
   SERVER_PORT: "8084"
   USER_REGISTERED_TOPIC: user.registered
