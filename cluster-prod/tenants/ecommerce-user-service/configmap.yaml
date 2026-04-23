@@ -25,9 +25,6 @@ data:
   SERVER_CONTEXT_PATH: /
   SERVER_PORT: "8081"
   SPRING_PROFILES_ACTIVE: kafka-sasl
-  USER_DB_NAME: neondb
-  USER_DB_PORT: "5432"
-  USER_DB_USERNAME: neondb_owner
   USER_REGISTERED_TOPIC: user.registered
 kind: ConfigMap
 metadata:

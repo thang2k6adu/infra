@@ -8,6 +8,7 @@ data:
   KAFKA_SASL_MECHANISM: SCRAM-SHA-512
   KAFKA_SASL_USERNAME: avnadmin
   KAFKA_SECURITY_PROTOCOL: SASL_SSL
+  KAFKA_SSL_CA_CERT_PATH: ./ca.pem
   PRODUCT_SERVICE_URL: http://prod-ecommerce-product-service.ecommerce-product-service.svc.cluster.local:8082
   SERVER_PORT: "8083"
   SPRING_PROFILES_ACTIVE: kafka-sasl

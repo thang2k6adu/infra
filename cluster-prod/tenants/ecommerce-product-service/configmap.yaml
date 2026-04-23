@@ -10,10 +10,10 @@ data:
   KAFKA_SASL_USERNAME: avnadmin
   KAFKA_SECURITY_PROTOCOL: SASL_SSL
   KAFKA_SSL_CA_CERT_PATH: ./ca.pem
-  KEYCLOAK_CLIENT_SECRET: fhIrOyzOYvu9dCAqQKWFXQrQG37jzXOO
   KEYCLOAK_RESOURCE: ecommerce-backend
   MINIO_ACCESS_KEY: minioadmin
   MINIO_BUCKET_NAME: ecommerce-products
+  MINIO_SECRET_KEY: minioadmin
   MINIO_URL: http://localhost:9000
   PRODUCT_SERVICE_URL: http://prod-ecommerce-product-service.ecommerce-product-service.svc.cluster.local:8082
   SERVER_PORT: "8082"
